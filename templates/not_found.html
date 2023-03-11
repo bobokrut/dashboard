@@ -1,0 +1,8 @@
+{% extends "center_content.html" %}
+{% block content %}
+    <h1>{{ what }} not found!</h1>
+    <h1>404</h1>
+    <div class="w-100 d-flex justify-content-center">
+        <button class="btn btn-dark" onclick="location.href='{{ back }}'">Back</button>
+    </div>
+{% endblock %}

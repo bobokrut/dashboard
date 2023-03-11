@@ -1,0 +1,135 @@
+{
+  "src/ts/components/Container.tsx": {
+    "displayName": "Container",
+    "description": "",
+    "props": {
+      "children": {
+        "description": "",
+        "required": true,
+        "type": {
+          "name": "node",
+          "raw": "Element"
+        }
+      },
+      "id": {
+        "description": "Unique ID to identify this component in Dash callbacks.",
+        "required": false,
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "setProps": {
+        "description": "Update props to trigger callbacks.",
+        "required": true,
+        "type": {
+          "name": "func",
+          "raw": "(props: Record<string, any>) => void"
+        }
+      }
+    },
+    "isContext": false
+  },
+  "src/ts/components/Grid.tsx": {
+    "displayName": "Grid",
+    "description": "",
+    "props": {
+      "children": {
+        "description": "",
+        "required": true,
+        "type": {
+          "name": "arrayOf",
+          "value": {
+            "name": "node",
+            "raw": "Element"
+          },
+          "raw": "Element[]"
+        }
+      },
+      "hash": {
+        "description": "",
+        "required": true,
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "id": {
+        "description": "Unique ID to identify this component in Dash callbacks.",
+        "required": false,
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "setProps": {
+        "description": "Update props to trigger callbacks.",
+        "required": true,
+        "type": {
+          "name": "func",
+          "raw": "(props: Record<string, any>) => void"
+        }
+      }
+    },
+    "isContext": false
+  },
+  "src/ts/components/Navbar.tsx": {
+    "displayName": "Navbar",
+    "description": "",
+    "props": {
+      "uni_name": {
+        "description": "",
+        "required": false,
+        "defaultValue": {
+          "value": "'University Name'",
+          "computed": false
+        },
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "uni_picture": {
+        "description": "",
+        "required": false,
+        "defaultValue": {
+          "value": "'https://cdn-icons-png.flaticon.com/512/2231/2231696.png'",
+          "computed": false
+        },
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "version": {
+        "description": "",
+        "required": false,
+        "defaultValue": {
+          "value": "'Unknown version'",
+          "computed": false
+        },
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "id": {
+        "description": "Unique ID to identify this component in Dash callbacks.",
+        "required": false,
+        "type": {
+          "name": "string",
+          "raw": "string"
+        }
+      },
+      "setProps": {
+        "description": "Update props to trigger callbacks.",
+        "required": true,
+        "type": {
+          "name": "func",
+          "raw": "(props: Record<string, any>) => void"
+        }
+      }
+    },
+    "isContext": false
+  }
+}
