@@ -1,37 +1,41 @@
-from flask import Flask
 import my_dash_component
-import dash
 from dash import html, dcc
 from config import App
+from init_dash import app, server
 
 
-def init_dash(server=None, config_file: str | None = None) -> dash.Dash:
+def init_dash(server=None, config_file: str | None = None):
 
     config: App = App()
 
     if not config_file:
         config_file = "config.json"
 
-    if server:
-        app = dash.Dash(__name__, server=server, url_base_pathname="/dash/", external_stylesheets=["/assets/tailwind.css"])
+    grid = []
+    for p, s in zip(config.plots, config.selectors):
+        if s:
+            grid.append(
+                my_dash_component.Container(
+                    [
+                        s[0],
+                        s[1],
+                        dcc.Graph(className="w-full h-full", id=p)
+                    ]
+                )
+            )
+        else:
+            grid.append(dcc.Graph(className="w-full h-full", figure=p))
 
-    else:
-        app = dash.Dash(__name__, external_stylesheets=["/assets/tailwind.css"])
 
     app.layout = html.Div(
         [
             my_dash_component.Navbar(
-                id="component",
+                id="sag_navbar",
                 uni_name=config.name,
-                version=config.version,
+                version=str(config.version),
             ),
             my_dash_component.Grid(
-                [
-                    dcc.Graph(
-                        figure=p, className="w-full h-full"
-                    )
-                    for p in config.plots
-                ],
+                grid,
                 hash=config.hash,
             ),
         ]
@@ -39,7 +43,5 @@ def init_dash(server=None, config_file: str | None = None) -> dash.Dash:
 
 
 def create_server(config: str | None = None):
-    server = Flask(__name__)
     init_dash(server, config_file=config)
     return server
-

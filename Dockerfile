@@ -32,5 +32,5 @@ COPY --from=builder /venv /venv
 
 ENTRYPOINT ["/venv/bin/gunicorn"]
 # CMD ["--bind", "0.0.0.0:8000", "-w", "4", "main:create_server()", "--reload", "--reload-extra-file", "config.json"]
-CMD ["--bind", "0.0.0.0:8000", "-w", "4", "main:create_server()"]
+CMD ["main:create_server()"]
 

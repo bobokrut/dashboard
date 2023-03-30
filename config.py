@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import md5
 from typing import Literal, Any
-from abc import ABC, abstractmethod
+from urllib.parse import urljoin
+from dateutil import parser as datetime_parser
 from datetime import datetime
 
 import requests
@@ -11,140 +12,171 @@ import plotly.express as px
 import plotly.graph_objects as go
 import polars
 import orjson
+from dash import Input, Output, dcc, html
 
 from env import GEOCODING_KEY
+import ssdl_types as t
+from init_dash import app
 
 
 VisualizationType = Literal["LineChart", "Scatter", "BarChart", "Map", "PieChart"]
-DataPathType = Literal["Path", "String"]
 
 
-def get_data_by_group_and_sum(
-    _requests: dict[str, Request], path: DataPath, group_by: str
-):
-    df = _requests[path.source].df
-    return df.loc[:, [path.path, group_by]].groupby(group_by)[path.path].sum()
+def calc_hash(_hash: str | list[Any]) -> str:
+    if isinstance(_hash, list):
+        _hash = str(_hash)
+    return md5(_hash.encode()).hexdigest()
 
 
 @dataclass(slots=True, init=False)
 class App:
     name: str
-    version: str
+    version: t.Version
     requests: dict[str, Request]
     plots: list[Visualization]
+    selectors: list
     hash: Any
-    scope: str
+    scope: t.Scope
 
     def __init__(self) -> None:
         with open("config.json") as f:
             config = orjson.loads(f.read())
 
         self.name = config["service"]["name"]
-        self.version = ".".join(
-            [
-                str(config["service"]["version"]["major"]),
-                str(config["service"]["version"]["minor"]),
-                str(config["service"]["version"]["patch"]),
-            ]
+        self.version = t.Version(
+            config["service"]["version"]["major"],
+            config["service"]["version"]["minor"],
+            config["service"]["version"]["patch"],
         )
-        self.scope = config["service"]["scope"]
+        self.scope = t.Scope(config["service"]["scope"].lower())
         self.requests = self.parse_requests_config(
             config["data_sources"]["measurements"]
         )
-        self.plots = self.parse_plots_config(config["application"]["visualizations"])
-        self.hash = self.calc_hash(str(config["application"]["visualizations"]))
+        self.plots = []
+        self.selectors = []
+        self.parse_plots_config(config["application"]["visualizations"])
+        self.hash = calc_hash(str(config["application"]["visualizations"]))
 
     def parse_requests_config(self, data: dict) -> dict[str, Request]:
         requests = {}
         for name, request in data.items():
             requests[name] = Request(
-                url=request["uri"]
-                if request["uri"].endswith("entities")
-                else request["uri"] + "/v2/entities",
-                type=request["type"],
-                provider=request["provider"],
+                url=request["uri"],
+                type=t.SensorType(request["type"].lower()),
+                provider=t.Provider(request["provider"].lower()),
                 query=Query(request["query"]["type"], request["query"]["select"]),
             )
         return requests
 
-    def parse_plots_config(self, data: dict) -> list[Visualization]:
-        plots: list[Visualization] = []
-        for plot in data.values():
+    def parse_plots_config(self, data: dict):
+        for i, plot in enumerate(data.values()):
             if plot["type"] == "Map":
-                plots.append(
+                self.selectors.append(None)
+                self.plots.append(
                     Map(
+                        df=self.requests[plot["source"]].df,
                         name=plot["name"],
                         type=plot["type"],
                         area=plot.get("extra").get("area")
                         if plot.get("extra")
                         else None,
-                        lat=self.get_data(plot["source"], plot["data"][0]).apply(
-                            lambda x: x[1]
-                        ),
-                        lon=self.get_data(plot["source"], plot["data"][0]).apply(
-                            lambda x: x[0]
-                        ),
-                        label=self.get_data(plot["source"], plot["data"][1]),
-                        extra={
-                            extra: self.get_data(plot["source"], extra).cast(polars.Utf8).fill_null("unknown")
-                            for extra in plot["data"][2:]
-                        },
+                        lat=plot["data"][0],
+                        lon=plot["data"][0],
+                        label=plot["data"][1],
+                        extra=plot["data"][2:],
                     ).create()
                 )
             else:
-                plots.append(
+                if group_by := plot.get("group_by"):
+
+                    comp_id = f"sag-selector-{i}"
+                    graph_id = f"sag-plot{i}"
+                    func_name = f"update_graph_{i}"
+                    self.plots.append(graph_id)
+
+                    self.selectors.append(
+                        (
+                            html.Label(group_by.casefold().capitalize()),
+                            dcc.Dropdown(
+                                self.get_data(plot["source"], group_by)
+                                .unique()
+                                .to_list(),
+                                id=comp_id,
+                            ),
+                        )
+                    )
+
                     Plot(
+                        df=self.requests[plot["source"]].df,
                         name=plot["name"],
                         type=plot["type"],
-                        traces=[
-                            {
-                                "x": self.get_data(trace["x"]),
-                                "y": self.get_data(trace["y"]),
-                                "name": trace["y"]["value"],
-                            }
-                            for trace in plot["traces"]
-                        ],
-                    ).create()
-                )
-        return plots
+                        traces=plot["traces"],
+                        filter=plot["group_by"],
+                    ).add_callback(comp_id, graph_id, func_name)
+                else:
 
-    def get_data(self, source, value) -> list:
+                    self.selectors.append(None)
+
+                    self.plots.append(
+                        Plot(
+                            df=self.requests[plot["source"]].df,
+                            name=plot["name"],
+                            type=plot["type"],
+                            traces=plot["traces"],
+                        ).create()
+                    )
+
+    def get_data(self, source, value) -> polars.Series:
 
         return self.requests[source].df[value]
-
-    def calc_hash(self, _hash: str) -> str:
-        return md5(_hash.encode()).hexdigest()
 
 
 @dataclass(slots=True)
 class Request:
     url: str
-    provider: str
-    type: str
+    provider: t.Provider
+    type: t.SensorType
     query: Query
 
     df: polars.DataFrame = field(init=False)
 
     def __post_init__(self):
+        if not self.url.endswith("entities"):
+            if not self.url.endswith("/"):
+                self.url += "/"
+            self.url = urljoin(self.url, "v2/entities")
+
+        if "id" not in self.query.select:
+            self.query.select.append("id")
+
         self.request()
+
+
 
     def request(self) -> None:
         resp = requests.get(self.url)
         data = orjson.loads(resp.content)
-        data_dict: list[list[Any]] = []
+        data_list: list[list[Any]] = []
 
         for entry in data:
             l = []
+
             for value in self.query.select:
-                if entry.get(value):
-                    l.append(self.process(entry[value]))
+
+                if value_data := entry.get(value):
+                    l.append(self.process(value_data, value))
                 else:
                     l.append(None)
-            data_dict.append(l)
 
-        self.df = polars.DataFrame(data_dict, schema=self.query.select)
+            data_list.append(l)
 
-    def process(self, entry: dict):
+        self.df = polars.DataFrame(data_list, schema=self.query.select)
+
+    def process(self, entry: dict, entry_name: str):
+
+        if not isinstance(entry, dict):
+            return entry
+
         match entry["type"]:
             case "Number":
                 return self.process_number(entry)
@@ -156,6 +188,10 @@ class Request:
                 return self.process_string(entry)
             case "DateTime":
                 return self.process_datetime(entry)
+            case "List":
+                return self.process_list(entry)
+            case "StructuredValue":
+                return self.process_structured_value(entry, entry_name)
 
     def process_number(self, entry: dict):
         return entry["value"]
@@ -170,7 +206,20 @@ class Request:
         return entry["value"]
 
     def process_datetime(self, entry: dict) -> datetime:
-        return datetime.strptime(entry["value"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        return datetime_parser.parse(entry["value"])
+
+    def process_list(self, entry: dict) -> list:
+        return entry["value"]
+
+    def process_structured_value(
+        self, entry: dict, entry_name: str
+    ) -> tuple[datetime, datetime]:
+        if entry_name == "validity":
+            return (
+                datetime_parser.parse(entry["value"]["from"]),
+                datetime_parser.parse(entry["value"]["to"]),
+            )
+        raise ValueError(f"StructuredValue type {entry_name} not supported")
 
 
 @dataclass
@@ -178,15 +227,26 @@ class Query:
     type: str
     select: list[str]
 
-
 @dataclass
-class Visualization(ABC):
+class Visualization():
     name: str
     type: VisualizationType
+    df: polars.DataFrame
 
-    @abstractmethod
     def create(self):
-        ...
+        raise NotImplementedError
+
+    def get_data(self, path: str, to_series: bool = True) -> polars.DataFrame | polars.Series:
+        result = self.df.select(polars.col(path))
+        if to_series:
+            return result.to_series()
+        return result
+
+    def get_data_with_filter(self, path: str, filter_by: str, filter: str, to_series: bool = True) -> polars.DataFrame | polars.Series:
+        result = self.df.filter(polars.col(filter_by) == filter).select(polars.col(path))
+        if to_series:
+            return result.to_series()
+        return result
 
 
 @dataclass(slots=True)
@@ -197,11 +257,11 @@ class DataPath:
 
 @dataclass
 class Map(Visualization):
-    lat: list
-    lon: list
+    lat: str
+    lon: str
     label: list
     area: str
-    extra: dict[str, list]
+    extra: list[str]
     center_cache: dict[str, dict] = field(default_factory=dict)
 
     def get_center(self):
@@ -218,10 +278,15 @@ class Map(Visualization):
 
     def create(self):
         fig = px.scatter_mapbox(
-            lat=self.lat,
-            lon=self.lon,
-            hover_name=self.label,
-            hover_data=self.extra,
+            lat=self.get_data(self.lat).apply(lambda x: x[1]),
+            lon=self.get_data(self.lon).apply(lambda x: x[0]),
+            hover_name=self.get_data(self.label),
+            hover_data={
+                name: self.get_data(name)
+                .cast(polars.Utf8)
+                .fill_null("unknown")
+                for name in self.extra
+            },
             mapbox_style="carto-positron",
             title=self.name,
         )
@@ -231,7 +296,7 @@ class Map(Visualization):
             + "<br>".join(
                 [
                     "<b>" + key + "</b>: %{customdata[" + str(i) + "]}"
-                    for i, key in enumerate(self.extra.keys())
+                    for i, key in enumerate(self.extra)
                 ]
             ),
         )
@@ -247,41 +312,62 @@ class Map(Visualization):
             )
         return fig
 
+    def get_data(self, path) -> polars.Series:
+        return self.df.unique(subset="id").select(polars.col(path)).to_series()
+
 
 @dataclass
 class Plot(Visualization):
     traces: list[dict[str, list]]
+    filter: str = field(default_factory=str)
+    graph_id: str = field(init=False)
 
-    def create(self):
+    def create(self, filter_by=None):
         fig = go.Figure()
+        traces = self.traces.copy()
         if self.type == "LineChart":
-            trace = self.traces.pop(0)
+            trace = traces.pop(0)
             fig.add_scatter(
-                x=trace["x"],
-                y=trace["y"],
+                x=self.get_data(trace["x"]),
+                y=self.get_data(trace["y"])
+                if not self.filter
+                else self
+                .get_data_with_filter(trace["y"], self.filter, filter_by),
                 mode="lines+markers",
-                name=trace["name"],
+                name=trace["y"],
             )
-            for trace in self.traces:
+            for trace in traces:
                 fig.add_scatter(
-                    x=trace["x"],
-                    y=trace["y"],
+                    x=self.get_data(trace["x"]),
+                    y=self.get_data(trace["y"])
+                    if not self.filter
+                    else self
+                    .get_data_with_filter(trace["y"], self.filter, filter_by),
                     mode="lines+markers",
-                    name=trace["name"],
+                    name=trace["y"],
                 )
 
         elif self.type == "Scatter":
-            trace = self.traces.pop(0)
+            trace = traces.pop(0)
 
             fig.add_scatter(
-                x=trace["x"],
-                y=trace["y"],
+                x=super().get_data(trace["x"]),
+                y=super().get_data(trace["y"])
+                if not self.filter
+                else super()
+                .get_data_with_filter(trace["y"], self.filter, filter_by),
                 mode="markers",
-                name=trace["name"],
+                name=trace["y"],
             )
-            for trace in self.traces:
+            for trace in traces:
                 fig.add_scatter(
-                    x=trace["x"], y=trace["y"], mode="markers", name=trace["name"]
+                    x=super().get_data(trace["x"]),
+                    y=super().get_data(trace["y"])
+                    if not self.filter
+                    else super()
+                    .get_data_with_filter(trace["y"], self.filter, filter_by),
+                    mode="markers",
+                    name=trace["y"],
                 )
 
         fig.update_layout(
@@ -293,3 +379,27 @@ class Plot(Visualization):
             margin=dict(l=20, r=60, t=40, b=20),
         )
         return fig
+
+    def add_callback(self, comp_id, graph_id, func_name):
+
+        @app.callback(
+            Output(component_id=graph_id, component_property="figure"),
+            Input(component_id=comp_id, component_property="value"),
+        )
+        def _func(input):
+
+            if input:
+                return self.create(input)
+
+            fig = go.Figure()
+            fig.update_layout(
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+                ),
+                showlegend=True,
+                margin=dict(l=20, r=60, t=40, b=20),
+            )
+
+            return fig
+
+        _func.__name__ = func_name
