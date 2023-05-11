@@ -56,25 +56,30 @@ class App:
     scope: t.Scope
 
     @staticmethod
-    def init() -> None:
-        with open("config1.json") as f:
-            content = f.read()
-            print(content)
+    def init(config: dict[str, Any] | None = None) -> None:
+        if not config:
+            with open("config.json") as f:
+                content = f.read()
             config = orjson.loads(content)
 
-            App.name = config["service"]["name"]
-            App.version = t.Version(
-                config["service"]["version"]["major"],
-                config["service"]["version"]["minor"],
-                config["service"]["version"]["patch"],
-            )
-            App.scope = t.Scope(config["service"]["scope"].lower())
+        App.name = config["service"]["name"]
+        App.version = t.Version(
+            config["service"]["version"]["major"],
+            config["service"]["version"]["minor"],
+            config["service"]["version"]["patch"],
+        )
+        App.scope = t.Scope(config["service"]["scope"].lower())
+        try:
             App.requests = App.parse_requests_config(
                 config["data_sources"]["measurements"]
             )
             App.plots = []
             App.parse_plots_config(config["application"]["visualizations"])
             App.hash = calc_hash(str(config["application"]["visualizations"]))
+        except ValueError as e:
+            print(e)
+            App.plots = []
+            App.hash = calc_hash("empty")
 
     @staticmethod
     def parse_requests_config(data: dict[str, Any]) -> dict[str, Request]:
@@ -118,7 +123,6 @@ class App:
                     )
                 else:
                     if group_by := plot.get("group_by"):
-
                         comp_id = f"sag-selector-{i}"
                         graph_id = f"sag-plot{i}"
                         func_name = f"update_graph_{i}"
@@ -146,7 +150,6 @@ class App:
                             filter=plot["group_by"],
                         ).add_callback(comp_id, graph_id, func_name)
                     else:
-
                         App.plots.append(
                             GridItem(
                                 plot=Plot(
@@ -168,7 +171,6 @@ class App:
 
     @staticmethod
     def get_data(source: str, value: str) -> polars.Series:
-
         return App.requests[source].df[value]
 
 
@@ -193,15 +195,18 @@ class Request:
         self.request()
 
     def request(self) -> None:
-        resp = requests.get(self.url, params={"type": self.query.type})
+        resp = requests.get(self.url)
         data = orjson.loads(resp.content)
+
+        if not data:
+            raise ValueError("No data received")
+
         data_list: list[list[Any]] = []
 
         for entry in data:
             l = []
 
             for value in self.query.select:
-
                 if value_data := entry.get(value):
                     l.append(self.process(value_data, value))
                 else:
@@ -212,7 +217,6 @@ class Request:
         self.df = polars.DataFrame(data_list, schema=self.query.select)
 
     def process(self, entry: dict, entry_name: str):
-
         if not isinstance(entry, dict):
             return entry
 
@@ -286,7 +290,6 @@ class Visualization:
     def get_data(
         self, path: str, to_series: bool = True
     ) -> polars.DataFrame | polars.Series:
-
         result: polars.DataFrame = self.df.select(polars.col(path))
         if to_series:
             return result.to_series()
@@ -393,7 +396,6 @@ class Map(Visualization):
 
     def get_data(self, path: str) -> polars.Series:
         try:
-
             result = self.df.unique(subset="id").select(polars.col(path)).to_series()
             return result
 
@@ -427,7 +429,6 @@ class Plot(Visualization):
                 )
 
         elif self.type == "Scatter":
-
             for trace in self.traces:
                 fig.add_scatter(
                     x=self.get_data(trace["x"])
@@ -481,7 +482,6 @@ class Plot(Visualization):
             Input(component_id=comp_id, component_property="value"),
         )
         def _func(input: str) -> go.Figure:
-
             if input:
                 return self.create(input)
 
