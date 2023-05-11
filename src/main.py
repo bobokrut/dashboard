@@ -1,48 +1,46 @@
 import my_dash_component
-from dash import html, dcc
 from .config import App
 from init_dash import app, server
-from flask import Flask, redirect, Response
-from flask_login import (
-    login_required,
-)
+from dash import dcc, html
+from flask import Flask, redirect, Response, request
+from werkzeug.datastructures import FileStorage
+import orjson
+from asgiref.wsgi import WsgiToAsgi
 
 
-def init_dash(server: Flask = None, config_file: str | None = None) -> None:
-
-    App.init()
-
-    if not config_file:
-        config_file = "config.json"
-
-    grid = []
-    for grid_item in App.plots:
-        if grid_item.selector:
-            grid.append(
-                my_dash_component.Container(
-                    [
-                        grid_item.selector[0],
-                        grid_item.selector[1],
-                        dcc.Graph(className="w-full h-full", id=grid_item.plot_id),
-                    ]
+def create_layout() -> list[my_dash_component.Container | dcc.Graph]:
+    def create_grid():
+        grid = []
+        for grid_item in App.plots:
+            if grid_item.selector:
+                grid.append(
+                    my_dash_component.Container(
+                        [
+                            grid_item.selector[0],
+                            grid_item.selector[1],
+                            dcc.Graph(className="w-full h-full", id=grid_item.plot_id),
+                        ]
+                    )
                 )
-            )
-        else:
-            grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
+            else:
+                grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
+        return grid
 
-    app.layout = html.Div(
+    return html.Div(
         [
             my_dash_component.Navbar(
                 id="sag_navbar",
                 uni_name=App.name,
                 version=str(App.version),
             ),
-            my_dash_component.Grid(
-                grid,
-                hash=App.hash,
-            ),
+            my_dash_component.Grid(create_grid(), hash=App.hash, id="sag_grid"),
         ]
     )
+
+
+def init_dash() -> None:
+    App.init()
+    app.layout = create_layout
 
 
 @server.route("/")
@@ -50,6 +48,18 @@ def index() -> Response:
     return redirect("/dash/")
 
 
-def create_server(config: str | None = None) -> Flask:
-    init_dash(server, config_file=config)
+@server.route("/config", methods=["POST"])
+def change_config() -> None:
+    file: FileStorage = list(request.files.values())[0]
+    new_config = orjson.loads(file.stream.read().decode("utf-8"))
+    file.stream.seek(0)
+    file.save("config.json")
+    App.init(new_config)
+    return Response(status=200)
+
+
+def create_server() -> Flask:
+    global server
+    init_dash()
+    server = WsgiToAsgi(server)
     return server
