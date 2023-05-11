@@ -34,7 +34,7 @@
     "displayName": "Grid",
     "description": "",
     "props": {
-      "children": {
+      "graths": {
         "description": "",
         "required": true,
         "type": {
