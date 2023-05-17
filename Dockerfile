@@ -1,4 +1,4 @@
-FROM python:3.11.2-slim as base
+FROM python:3.9.16-slim as base
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONHASHSEED=random \
@@ -30,7 +30,8 @@ COPY . .
 
 COPY --from=builder /venv /venv
 
-ENTRYPOINT ["/venv/bin/gunicorn"]
+ENTRYPOINT ["/venv/bin/uvicorn"]
+CMD ["--factory", "src.main:create_server", "--host", "0.0.0.0"]
 # CMD ["--bind", "0.0.0.0:8000", "-w", "4", "main:create_server()", "--reload", "--reload-extra-file", "config.json"]
 # CMD ["main:create_server()"]
 
