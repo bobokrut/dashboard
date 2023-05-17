@@ -57,7 +57,6 @@ class App:
             with open("config.json") as f:
                 content = f.read()
             config = orjson.loads(content)
-        print(config)
 
         App.name = config["service"]["name"]
         App.version = t.Version(
@@ -77,9 +76,6 @@ class App:
             print(e)
             App.plots = []
             App.hash = calc_hash("empty")
-        print(App.plots)
-        print(App.hash)
-        print(App.requests)
 
     @staticmethod
     def parse_requests_config(data: dict[str, Any]) -> dict[str, Request]:
@@ -105,7 +101,6 @@ class App:
         for i, plot in enumerate(data.values()):
             try:
                 if plot["type"] == "Map":
-                    print("Map")
                     App.plots.append(
                         GridItem(
                             plot=Map(
@@ -122,7 +117,6 @@ class App:
                             ).create(),
                         )
                     )
-                    print(App.plots)
                 else:
                     if group_by := plot.get("group_by"):
                         comp_id = f"sag-selector-{i}"
@@ -353,7 +347,6 @@ class Map(Visualization):
         if self.area in self.center_cache:
             return self.center_cache[self.area]
 
-        print(f"Getting location from 'https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}'")
         result: dict[str, dict] = requests.get(
             f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
         ).json()
@@ -377,7 +370,6 @@ class Map(Visualization):
             mapbox_style="carto-positron",
             title=self.name,
         )
-        print(fig)
 
         fig.update_traces(
             hovertemplate="<b>%{hovertext}</b><br><br>"
@@ -399,8 +391,6 @@ class Map(Visualization):
                     zoom=10,
                 )
             )
-        print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
-        print(fig)
         return fig
 
     def get_data(self, path: str) -> polars.Series:

@@ -26,7 +26,6 @@ def create_layout() -> list[Union[my_dash_component.Container, dcc.Graph]]:
                 )
             else:
                 grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
-        print(grid)
         return grid
 
     return html.Div(
