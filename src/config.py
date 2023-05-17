@@ -6,9 +6,8 @@ from typing import Literal, Any
 from urllib.parse import urljoin
 from datetime import datetime
 import sys
-import signal
-import os
 from typing import Union
+import logging
 
 import requests
 import plotly.express as px
@@ -351,7 +350,7 @@ class Map(Visualization):
             f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
         ).json()
         if result["status"] != "OK":
-            return {"lat": 0, "lon": 0}
+            raise ValueError(f"Could not find location for {self.area}")
         location = result["results"][0]["geometry"]["location"]
 
         self.center_cache[self.area] = location
@@ -385,12 +384,16 @@ class Map(Visualization):
             margin=dict(l=20, r=20, t=40, b=20),
         )
         if self.area:
-            fig.update_layout(
-                mapbox=dict(
-                    center=self.get_center(),
-                    zoom=10,
+            try:
+
+                fig.update_layout(
+                    mapbox=dict(
+                        center=self.get_center(),
+                        zoom=10,
+                    )
                 )
-            )
+            except ValueError as e:
+                logging.error(e)
         return fig
 
     def get_data(self, path: str) -> polars.Series:
