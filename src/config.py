@@ -8,6 +8,7 @@ from datetime import datetime
 import sys
 import signal
 import os
+from typing import Union
 
 import requests
 import plotly.express as px
@@ -30,7 +31,7 @@ class ConfigError(Exception):
 VisualizationType = Literal["LineChart", "Scatter", "BarChart", "Map", "PieChart"]
 
 
-def calc_hash(_hash: str | list[Any]) -> str:
+def calc_hash(_hash: Union[str, list[Any]]) -> str:
     if isinstance(_hash, list):
         _hash = str(_hash)
     return md5(_hash.encode()).hexdigest()
@@ -42,11 +43,6 @@ def print_error_and_exit(error: str, hint: str = "") -> None:
     if hint:
         message += "\n" + f"\033[92mHINT\033[0m {hint}"
 
-    with open("master.pid") as f:
-        os.kill(int(f.read()), signal.SIGTERM)
-        sys.exit(message)
-
-
 class App:
     name: str
     version: t.Version
@@ -56,11 +52,12 @@ class App:
     scope: t.Scope
 
     @staticmethod
-    def init(config: dict[str, Any] | None = None) -> None:
+    def init(config: Union[dict[str, Any], None] = None) -> None:
         if not config:
             with open("config.json") as f:
                 content = f.read()
             config = orjson.loads(content)
+        print(config)
 
         App.name = config["service"]["name"]
         App.version = t.Version(
@@ -68,7 +65,7 @@ class App:
             config["service"]["version"]["minor"],
             config["service"]["version"]["patch"],
         )
-        App.scope = t.Scope(config["service"]["scope"].lower())
+        App.scope = t.Scope(config["service"]["scope"])
         try:
             App.requests = App.parse_requests_config(
                 config["data_sources"]["measurements"]
@@ -80,6 +77,9 @@ class App:
             print(e)
             App.plots = []
             App.hash = calc_hash("empty")
+        print(App.plots)
+        print(App.hash)
+        print(App.requests)
 
     @staticmethod
     def parse_requests_config(data: dict[str, Any]) -> dict[str, Request]:
@@ -88,8 +88,8 @@ class App:
             try:
                 requests[name] = Request(
                     url=request["uri"],
-                    type=t.SensorType(request["type"].lower()),
-                    provider=t.Provider(request["provider"].lower()),
+                    type=t.SensorType(request["type"]),
+                    provider=t.Provider(request["provider"]),
                     query=Query(request["query"]["type"], request["query"]["select"]),
                 )
             except KeyError as e:
@@ -105,6 +105,7 @@ class App:
         for i, plot in enumerate(data.values()):
             try:
                 if plot["type"] == "Map":
+                    print("Map")
                     App.plots.append(
                         GridItem(
                             plot=Map(
@@ -121,6 +122,7 @@ class App:
                             ).create(),
                         )
                     )
+                    print(App.plots)
                 else:
                     if group_by := plot.get("group_by"):
                         comp_id = f"sag-selector-{i}"
@@ -174,7 +176,7 @@ class App:
         return App.requests[source].df[value]
 
 
-@dataclass(slots=True)
+@dataclass()
 class Request:
     url: str
     provider: t.Provider
@@ -220,23 +222,22 @@ class Request:
         if not isinstance(entry, dict):
             return entry
 
-        match entry["type"]:
-            case "Number":
-                return self.process_number(entry)
-            case "geo:json":
-                return self.process_location(entry)
-            case "PostalAddress":
-                return self.process_address(entry)
-            case "Text":
-                return self.process_string(entry)
-            case "DateTime":
-                return self.process_datetime(entry)
-            case "List":
-                return self.process_list(entry)
-            case "StructuredValue":
-                return self.process_structured_value(entry, entry_name)
+        if entry["type"] == "Number":
+            return self.process_number(entry)
+        elif entry["type"] == "geo:json":
+            return self.process_location(entry)
+        elif entry["type"] == "PostalAddress":
+            return self.process_address(entry)
+        elif entry["type"] == "Text":
+            return self.process_string(entry)
+        elif entry["type"] == "DateTime":
+            return self.process_datetime(entry)
+        elif entry["type"] == "List":
+            return self.process_list(entry)
+        elif entry["type"] == "StructuredValue":
+            return self.process_structured_value(entry, entry_name)
 
-    def process_number(self, entry: dict[str, int | float]) -> int | float:
+    def process_number(self, entry: dict[str, float]) -> int | float:
         return entry["value"]
 
     def process_location(self, entry: dict[str, dict[str, list[float]]]) -> list[float]:
@@ -273,9 +274,9 @@ class Query:
 
 @dataclass
 class GridItem:
-    plot: Visualization | None = None
-    selector: dcc.Dropdown | None = None
-    plot_id: str | None = None
+    plot: Union[Visualization, None] = None
+    selector: Union[dcc.Dropdown, None] = None
+    plot_id: Union[str, None] = None
 
 
 @dataclass
@@ -289,7 +290,7 @@ class Visualization:
 
     def get_data(
         self, path: str, to_series: bool = True
-    ) -> polars.DataFrame | polars.Series:
+    ) -> Union[polars.DataFrame, polars.Series]:
         result: polars.DataFrame = self.df.select(polars.col(path))
         if to_series:
             return result.to_series()
@@ -302,7 +303,7 @@ class Visualization:
         filter: str,
         to_series: bool = True,
         bar_chart: bool = False,
-    ) -> polars.DataFrame | polars.Series:
+    ) -> Union[polars.DataFrame, polars.Series]:
         try:
             if bar_chart:
                 result = (
@@ -352,9 +353,13 @@ class Map(Visualization):
         if self.area in self.center_cache:
             return self.center_cache[self.area]
 
-        location: dict[str, float] = requests.get(
+        print(f"Getting location from 'https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}'")
+        result: dict[str, dict] = requests.get(
             f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
-        ).json()["results"][0]["geometry"]["location"]
+        ).json()
+        if result["status"] != "OK":
+            return {"lat": 0, "lon": 0}
+        location = result["results"][0]["geometry"]["location"]
 
         self.center_cache[self.area] = location
         location["lon"] = location.pop("lng")
@@ -372,6 +377,7 @@ class Map(Visualization):
             mapbox_style="carto-positron",
             title=self.name,
         )
+        print(fig)
 
         fig.update_traces(
             hovertemplate="<b>%{hovertext}</b><br><br>"
@@ -382,6 +388,7 @@ class Map(Visualization):
                 ]
             ),
         )
+
         fig.update_layout(
             margin=dict(l=20, r=20, t=40, b=20),
         )
@@ -392,6 +399,8 @@ class Map(Visualization):
                     zoom=10,
                 )
             )
+        print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+        print(fig)
         return fig
 
     def get_data(self, path: str) -> polars.Series:

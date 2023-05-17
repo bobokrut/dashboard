@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from enum import StrEnum, auto
+from enum import auto
 from dataclasses import dataclass, Field
 from typing import (
     ClassVar,
-    TypeAlias,
     Protocol,
     TypeVar,
     Any,
     Iterable,
     Generic,
-    Self,
+    Union,
     runtime_checkable,
 )
 from urllib.parse import ParseResult as URI
 from iso6709.iso6709 import Location  # type: ignore
 from datetime import datetime
+from strenum import StrEnum
+from typing_extensions import Self, TypeAlias
 
 """
 Globals section / Wraps / Protocols
@@ -116,7 +117,7 @@ class Geolocation(Wrap[Location]):
     ...
 
 
-Types: TypeAlias = String | Integer | Double | Boolean | Timestamp | Geolocation
+Types: TypeAlias = Union[String, Integer, Double, Boolean, Timestamp, Geolocation]
 
 InType = TypeVar("InType", contravariant=True)
 OutType = TypeVar("OutType", covariant=True)

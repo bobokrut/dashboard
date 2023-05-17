@@ -7,8 +7,10 @@ from werkzeug.datastructures import FileStorage
 import orjson
 from asgiref.wsgi import WsgiToAsgi
 
+from typing import Union
 
-def create_layout() -> list[my_dash_component.Container | dcc.Graph]:
+
+def create_layout() -> list[Union[my_dash_component.Container, dcc.Graph]]:
     def create_grid():
         grid = []
         for grid_item in App.plots:
@@ -24,6 +26,7 @@ def create_layout() -> list[my_dash_component.Container | dcc.Graph]:
                 )
             else:
                 grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
+        print(grid)
         return grid
 
     return html.Div(
