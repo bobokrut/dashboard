@@ -12,10 +12,9 @@ import logging
 import requests
 import plotly.express as px
 import plotly.graph_objects as go
-import polars
 import orjson
+import pandas
 from dash import Input, Output, dcc, html
-from polars.exceptions import ColumnNotFoundError
 from dateutil import parser as datetime_parser
 
 from .env import GEOCODING_KEY
@@ -41,6 +40,7 @@ def print_error_and_exit(error: str, hint: str = "") -> None:
 
     if hint:
         message += "\n" + f"\033[92mHINT\033[0m {hint}"
+
 
 class App:
     name: str
@@ -165,7 +165,7 @@ class App:
                 )
 
     @staticmethod
-    def get_data(source: str, value: str) -> polars.Series:
+    def get_data(source: str, value: str) -> pandas.Series:
         return App.requests[source].df[value]
 
 
@@ -176,7 +176,7 @@ class Request:
     type: t.SensorType
     query: Query
 
-    df: polars.DataFrame = field(init=False)
+    df: pandas.DataFrame = field(init=False)
 
     def __post_init__(self) -> None:
         if not self.url.endswith("entities"):
@@ -209,7 +209,7 @@ class Request:
 
             data_list.append(l)
 
-        self.df = polars.DataFrame(data_list, schema=self.query.select)
+        self.df = pandas.DataFrame(data_list, columns=self.query.select)
 
     def process(self, entry: dict, entry_name: str):
         if not isinstance(entry, dict):
@@ -283,8 +283,8 @@ class Visualization:
 
     def get_data(
         self, path: str, to_series: bool = True
-    ) -> Union[polars.DataFrame, polars.Series]:
-        result: polars.DataFrame = self.df.select(polars.col(path))
+    ) -> Union[pandas.DataFrame, pandas.Series]:
+        result: pandas.DataFrame = self.df[path]
         if to_series:
             return result.to_series()
         return result
@@ -296,21 +296,17 @@ class Visualization:
         filter: str,
         to_series: bool = True,
         bar_chart: bool = False,
-    ) -> Union[polars.DataFrame, polars.Series]:
+    ) -> Union[pandas.DataFrame, pandas.Series]:
         try:
             if bar_chart:
-                result = (
-                    self.df.filter(polars.col(filter_by) == filter)
-                    .groupby("dateObserved")
-                    .agg(polars.first(path))
-                    .sort("dateObserved")
-                    .select(path)
-                )
+                filtered_df = self.df[self.df[filter_by] == filter]
+                grouped_df = filtered_df.groupby("dateObserved").agg({path: "first"})
+                sorted_df = grouped_df.sort_values("dateObserved")
+                result = sorted_df[[path]]
             else:
-                result = self.df.filter(polars.col(filter_by) == filter).select(
-                    polars.col(path)
-                )
-        except ColumnNotFoundError as e:
+                filtered_df = self.df[self.df[filter_by] == filter]
+                result = filtered_df[[path]]
+        except KeyError as e:
             sp = str(e).split("\n")
             column_name = sp[0].strip()
             df = sp[3].split(";")[0].strip()
@@ -346,9 +342,24 @@ class Map(Visualization):
         if self.area in self.center_cache:
             return self.center_cache[self.area]
 
+        result: list[dict[str, dict]] = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": self.area, "format": "json"},
+        ).json()
+
+        if not result:
+            raise ValueError(f"Could not find location for {self.area}")
+
+        location = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
+        self.center_cache[self.area] = location
+        return location
+            
+
+        # google api deprecated
         result: dict[str, dict] = requests.get(
             f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
         ).json()
+
         if result["status"] != "OK":
             raise ValueError(f"Could not find location for {self.area}")
         location = result["results"][0]["geometry"]["location"]
@@ -363,7 +374,7 @@ class Map(Visualization):
             lon=self.get_data(self.lon).apply(lambda x: x[0]),
             hover_name=self.get_data(self.label),
             hover_data={
-                name: self.get_data(name).cast(polars.Utf8).fill_null("unknown")
+                name: self.df[self.get_data(name)].astype(str).fillna("unknown")
                 for name in self.extra
             },
             mapbox_style="carto-positron",
@@ -385,7 +396,6 @@ class Map(Visualization):
         )
         if self.area:
             try:
-
                 fig.update_layout(
                     mapbox=dict(
                         center=self.get_center(),
@@ -396,12 +406,12 @@ class Map(Visualization):
                 logging.error(e)
         return fig
 
-    def get_data(self, path: str) -> polars.Series:
+    def get_data(self, path: str) -> pandas.Series:
         try:
-            result = self.df.unique(subset="id").select(polars.col(path)).to_series()
+            result = self.df.drop_duplicates(subset="id")[path].reset_index(drop=True)
             return result
 
-        except ColumnNotFoundError:
+        except KeyError as e:
             print_error_and_exit(
                 error=f"Map {self.name}: Column {path} not found in {self.name}",
                 hint=f"Check if 'data_sources.measurements.<name>.query.select' has this key",
