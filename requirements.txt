@@ -23,7 +23,6 @@ orjson==3.8.12
 packaging==23.0
 pandas==2.0.1
 plotly==5.14.0
-polars==0.17.12
 pydantic==1.10.7
 python-dateutil==2.8.2
 python-dotenv==1.0.0
