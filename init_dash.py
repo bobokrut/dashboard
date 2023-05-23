@@ -2,9 +2,10 @@ import dash
 from src.user_auth import auth, login_manager
 from flask import Flask
 from flask_login import login_required
+from src.env import SECRET_KEY
 
 server = Flask(__name__)
-server.config["SECRET_KEY"] = "1234"
+server.config["SECRET_KEY"] = SECRET_KEY
 server.register_blueprint(auth)
 login_manager.init_app(server)
 login_manager.login_view = "auth.login_get"

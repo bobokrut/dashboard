@@ -25,7 +25,7 @@ class User(UserMixin):
 
 
 users: dict[str, User] = {
-    "admin": User(id=1, username="admin", password="admin"),
+    "admin": User(id=1, username="email@example6.com", password="password123"),
 }
 
 
