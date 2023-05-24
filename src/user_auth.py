@@ -25,7 +25,7 @@ class User(UserMixin):
 
 
 users: dict[str, User] = {
-    "admin": User(id=1, username="email@example6.com", password="password123"),
+    "example6@email.com": User(id=1, username="example6@email.com", password="password123"),
 }
 
 
@@ -34,9 +34,8 @@ def login_post() -> Response:
     username: str = request.form.get("username")  # type: ignore
     password: str = request.form.get("password")  # type: ignore
     remember: str = request.form.get("remember")
-    print(username, password, remember)
 
-    if not username and not username in users:
+    if not username or not username in users:
         flash("No such user")
         print("No such user")
         return redirect(url_for("auth.login_get"))

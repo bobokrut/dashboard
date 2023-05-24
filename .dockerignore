@@ -2,4 +2,3 @@
 .venv/
 .python-version
 node_modules/
-config.json

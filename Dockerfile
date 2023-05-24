@@ -1,8 +1,15 @@
 FROM python:3.9.16-slim as base
 
+ARG geocode_key
+ARG secret
+
+
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONHASHSEED=random \
     PYTHONUNBUFFERED=1
+
+ENV GEOCODING_KEY=$geocode_key
+ENV SECRET_KEY=$secret
 
 WORKDIR /app
 
@@ -29,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends inotify-tools &
 COPY . .
 
 COPY --from=builder /venv /venv
+
+EXPOSE 8000
 
 ENTRYPOINT ["/venv/bin/uvicorn"]
 CMD ["--factory", "src.main:create_server", "--host", "0.0.0.0"]
