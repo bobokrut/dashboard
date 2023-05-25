@@ -5,7 +5,6 @@ from hashlib import md5
 from typing import Literal, Any
 from urllib.parse import urljoin
 from datetime import datetime
-import sys
 from typing import Union
 
 import requests
@@ -36,11 +35,13 @@ def calc_hash(_hash: Union[str, list[Any]]) -> str:
     return md5(_hash.encode()).hexdigest()
 
 
-def print_error_and_exit(error: str, hint: str = "") -> None:
+def log_error(error: str, hint: str = "") -> None:
     message = f"\033[91mERROR\033[0m {error}"
 
     if hint:
         message += "\n" + f"\033[92mHINT\033[0m {hint}"
+
+    logger.error(message)
 
 
 class App:
@@ -73,8 +74,14 @@ class App:
             App.plots = []
             App.parse_plots_config(config["application"]["visualizations"])
             App.hash = calc_hash(str(config["application"]["visualizations"]))
-        except ValueError as e:
-            print(e)
+
+        except ConfigError:
+            # logged already
+            App.plots = []
+            App.hash = calc_hash("empty")
+
+        except Exception as e:
+            logger.error(e)
             App.plots = []
             App.hash = calc_hash("empty")
 
@@ -90,10 +97,11 @@ class App:
                     query=Query(request["query"]["type"], request["query"]["select"]),
                 )
             except KeyError as e:
-                print_error_and_exit(
+                log_error(
                     f"Invalid config file. Missing key {e} in {name} request.",
                     "Please check your config file.",
                 )
+                raise ConfigError
 
         return requests
 
@@ -158,13 +166,15 @@ class App:
                             )
                         )
             except KeyError as e:
-                print_error_and_exit(f"Missing key {e} in plot {plot['name']}")
+                log_error(f"Missing key {e} in plot {plot['name']}")
+                raise ConfigError
 
             except IndexError as e:
-                print_error_and_exit(
+                log_error(
                     f"Invalid config file. Chech if '{plot['name']}.data' has at least 2 items. {plot['data']=}",
                     "Please check your config file.",
                 )
+                raise ConfigError
 
     @staticmethod
     def get_data(source: str, value: str) -> pandas.Series:
@@ -312,16 +322,17 @@ class Visualization:
             sp = str(e).split("\n")
             column_name = sp[0].strip()
             df = sp[3].split(";")[0].strip()
-            print_error_and_exit(
+            log_error(
                 error=f"{self.type} {self.name}: Column '{column_name}' not found in dataframe {df}",
                 hint=f"Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
+            raise ConfigError
         if to_series:
             return result.to_series()
         return result
 
     @property
-    def df(self) -> polars.DataFrame:
+    def df(self) -> pandas.DataFrame:
         return App.requests[self.source_name].df
 
 
@@ -413,11 +424,11 @@ class Map(Visualization):
             return result
 
         except KeyError as e:
-            print_error_and_exit(
+            log_error(
                 error=f"Map {self.name}: Column {path} not found in {self.name}",
                 hint=f"Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
-            sys.exit(1)
+            raise ConfigError
 
 
 @dataclass
