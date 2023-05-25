@@ -1,14 +1,15 @@
 from flask import request, redirect, Blueprint, render_template, url_for, flash
 from flask_login import login_required, login_user, logout_user
 
-# from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.wrappers.response import Response
 from flask_login import LoginManager, UserMixin
+from logging import getLogger
 
 from typing import Any
 
 auth = Blueprint("auth", __name__)
 login_manager: LoginManager = LoginManager()
+logger = getLogger("dash_app")
 
 
 class User(UserMixin):
@@ -17,7 +18,7 @@ class User(UserMixin):
         self.username = username
         self.password = password
 
-    def get_id(self) -> int:
+    def get_id(self) -> str:
         return self.username
 
     def check_password(self, password: str) -> bool:
@@ -25,7 +26,9 @@ class User(UserMixin):
 
 
 users: dict[str, User] = {
-    "example6@email.com": User(id=1, username="example6@email.com", password="password123"),
+    "example6@email.com": User(
+        id=1, username="example6@email.com", password="password123"
+    ),
 }
 
 
@@ -40,14 +43,14 @@ def login_post() -> Response:
         print("No such user")
         return redirect(url_for("auth.login_get"))
 
-    if not users.get(username).check_password(password):
+    if not users[username].check_password(password):
         flash("Please check your login details and try again.")
         print("Please check your login details and try again.")
         return redirect(url_for("auth.login_get"))
 
     user = users.get(username)
     login_user(user, remember=True)
-    print("Logged in")
+    logger.info(f"User {username} logged in")
     return redirect("/dash/")
 
 

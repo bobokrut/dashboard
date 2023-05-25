@@ -7,19 +7,19 @@ from urllib.parse import urljoin
 from datetime import datetime
 import sys
 from typing import Union
-import logging
 
 import requests
 import plotly.express as px
 import plotly.graph_objects as go
 import orjson
 import pandas
-from dash import Input, Output, dcc, html
+from dash import Input, Output, dcc, html, callback
 from dateutil import parser as datetime_parser
 
 from .env import GEOCODING_KEY
 from . import ssdl_types as t
-from init_dash import app
+import logging
+logger = logging.getLogger("dash_app")
 
 
 class ConfigError(Exception):
@@ -52,6 +52,7 @@ class App:
 
     @staticmethod
     def init(config: Union[dict[str, Any], None] = None) -> None:
+        logger.info("Initializing app...")
         if not config:
             with open("config.json") as f:
                 content = f.read()
@@ -403,7 +404,7 @@ class Map(Visualization):
                     )
                 )
             except ValueError as e:
-                logging.error(e)
+                logger.error(e)
         return fig
 
     def get_data(self, path: str) -> pandas.Series:
@@ -489,7 +490,7 @@ class Plot(Visualization):
         return fig
 
     def add_callback(self, comp_id: str, graph_id: str, func_name: str) -> None:
-        @app.callback(
+        @callback(
             Output(component_id=graph_id, component_property="figure"),
             Input(component_id=comp_id, component_property="value"),
         )

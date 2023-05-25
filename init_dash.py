@@ -1,14 +1,15 @@
 import dash
 from src.user_auth import auth, login_manager
 from flask import Flask
-from flask_login import login_required
 from src.env import SECRET_KEY
+
 
 server = Flask(__name__)
 server.config["SECRET_KEY"] = SECRET_KEY
 server.register_blueprint(auth)
 login_manager.init_app(server)
 login_manager.login_view = "auth.login_get"
+
 
 
 app = dash.Dash(
@@ -21,8 +22,3 @@ app = dash.Dash(
         "/static/react-grid-layout-css.css",
     ],
 )
-for view_func in server.view_functions:
-    if view_func.startswith("/dash/"):
-        server.view_functions[view_func] = login_required(
-            server.view_functions[view_func]
-        )
