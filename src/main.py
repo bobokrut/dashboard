@@ -1,6 +1,6 @@
 import my_dash_component
 from .config import App
-from init_dash import app, server
+from .init_dash import app, server
 from dash import dcc, html
 from flask import redirect, Response, request
 from werkzeug.datastructures import FileStorage
