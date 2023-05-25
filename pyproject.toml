@@ -52,6 +52,8 @@ zipp = {version = "3.15.0", python = "3.9", platform = "linux"}
 black = "^23.3.0"
 pytest = "^7.3.1"
 debugpy = "^1.6.7"
+memory-profiler = "^0.61.0"
+matplotlib = "^3.7.1"
 
 [build-system]
 requires = ["poetry-core"]
