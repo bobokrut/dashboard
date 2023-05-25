@@ -1,10 +1,14 @@
 import dash
-from src.user_auth import auth, login_manager
+from .user_auth import auth, login_manager
 from flask import Flask
-from src.env import SECRET_KEY
+from .env import SECRET_KEY
 
 
-server = Flask(__name__)
+server = Flask(
+    __name__,
+    template_folder="../templates",
+    static_folder="../static",
+)
 server.config["SECRET_KEY"] = SECRET_KEY
 server.register_blueprint(auth)
 login_manager.init_app(server)
