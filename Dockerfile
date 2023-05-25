@@ -30,9 +30,6 @@ RUN . /venv/bin/activate && pip install -r requirements.txt
 
 FROM base as final
 
-# RUN apt-get update && apt-get -y --no-install-recommends watchexec && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install -y --no-install-recommends inotify-tools && rm -rf /var/lib/apt/lists/*
-
 COPY . .
 
 COPY --from=builder /venv /venv
@@ -40,7 +37,7 @@ COPY --from=builder /venv /venv
 EXPOSE 8000
 
 ENTRYPOINT ["/venv/bin/uvicorn"]
-CMD ["--factory", "src.main:create_server", "--host", "0.0.0.0"]
+CMD ["--factory", "src.main:create_server", "--host", "0.0.0.0", "--use-colors"]
 # CMD ["--bind", "0.0.0.0:8000", "-w", "4", "main:create_server()", "--reload", "--reload-extra-file", "config.json"]
 # CMD ["main:create_server()"]
 
