@@ -175,4 +175,4 @@ config1.json
 config2.json
 config3.json
 poetry.lock
-./tailwind.css
+/tailwind.css
