@@ -19,6 +19,7 @@ from dateutil import parser as datetime_parser
 from .env import GEOCODING_KEY
 from . import ssdl_types as t
 import logging
+
 logger = logging.getLogger("dash_app")
 
 
@@ -354,7 +355,6 @@ class Map(Visualization):
         location = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
         self.center_cache[self.area] = location
         return location
-            
 
         # google api deprecated
         result: dict[str, dict] = requests.get(

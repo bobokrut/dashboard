@@ -11,7 +11,6 @@ login_manager.init_app(server)
 login_manager.login_view = "auth.login_get"
 
 
-
 app = dash.Dash(
     __name__,
     server=server,
