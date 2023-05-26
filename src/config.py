@@ -54,6 +54,7 @@ class App:
     @staticmethod
     def init(config: dict[str, Any] | None = None) -> None:
         logger.info("Initializing app...")
+
         if not config:
             with open("config.json") as f:
                 content = f.read()
@@ -66,12 +67,12 @@ class App:
             config["service"]["version"]["patch"],
         )
         App.scope = t.Scope(config["service"]["scope"].lower())
+
         try:
             App.requests = App.parse_requests_config(
                 config["data_sources"]["measurements"]
             )
-            App.plots = []
-            App.parse_plots_config(config["application"]["visualizations"])
+            App.plots = App.parse_plots_config(config["application"]["visualizations"])
             App.hash = calc_hash(str(config["application"]["visualizations"]))
 
         except ConfigError:
@@ -105,19 +106,18 @@ class App:
         return requests
 
     @staticmethod
-    def parse_plots_config(data: dict[str, Any]) -> None:
+    def parse_plots_config(data: dict[str, Any]) -> list[GridItem]:
+        plots = []
         for i, plot in enumerate(data.values()):
             try:
                 if plot["type"] == "Map":
-                    App.plots.append(
+                    plots.append(
                         GridItem(
                             plot=Map(
                                 source_name=plot["source"],
                                 name=plot["name"],
                                 type=plot["type"],
-                                area=plot.get("extra").get("area")
-                                if plot.get("extra")
-                                else None,
+                                area=plot["extra"]["area"] if "extra" in plot else None,
                                 lat=plot["data"][0],
                                 lon=plot["data"][0],
                                 label=plot["data"][1],
@@ -130,7 +130,7 @@ class App:
                         comp_id = f"sag-selector-{i}"
                         graph_id = f"sag-plot{i}"
                         func_name = f"update_graph_{i}"
-                        App.plots.append(
+                        plots.append(
                             GridItem(
                                 selector=(
                                     html.Label(group_by.casefold().capitalize()),
@@ -154,7 +154,7 @@ class App:
                             filter=plot["group_by"],
                         ).add_callback(comp_id, graph_id, func_name)
                     else:
-                        App.plots.append(
+                        plots.append(
                             GridItem(
                                 plot=Plot(
                                     source_name=plot["source"],
@@ -174,6 +174,10 @@ class App:
                     "Please check your config file.",
                 )
                 raise ConfigError
+
+            finally:
+                return plots
+
     @staticmethod
     def get_data(source: str, value: str) -> pandas.Series:
         return App.requests[source].df[value]
@@ -334,18 +338,12 @@ class Visualization:
         return App.requests[self.source_name].df
 
 
-# @dataclass(slots=True)
-# class DataPath:
-#     source: str
-#     path: str
-
-
 @dataclass
 class Map(Visualization):
     lat: str
     lon: str
     label: str
-    area: str
+    area: str | None
     extra: list[str]
     center_cache: dict[str, dict[str, float]] = field(default_factory=dict)
 
@@ -365,7 +363,7 @@ class Map(Visualization):
         self.center_cache[self.area] = location
         return location
 
-        # google api deprecated
+        # WARNING: google api deprecated
         result: dict[str, dict] = requests.get(
             f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
         ).json()
@@ -520,6 +518,7 @@ class Plot(Visualization):
             return fig
 
         _func.__name__ = func_name
+
 
 if __name__ == "__main__":
     app = App.init()
