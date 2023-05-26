@@ -6,10 +6,9 @@ ARG secret
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONHASHSEED=random \
-    PYTHONUNBUFFERED=1
-
-ENV GEOCODING_KEY=$geocode_key
-ENV SECRET_KEY=$secret
+    PYTHONUNBUFFERED=1 \
+    GEOCODING_KEY=$geocode_key \
+    SECRET_KEY=$secret
 
 WORKDIR /app
 
@@ -21,10 +20,9 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN python -m venv /venv
-
 COPY requirements.txt .
-RUN . /venv/bin/activate && pip install -r requirements.txt
+
+RUN python -m venv /venv && . /venv/bin/activate && pip install -r requirements.txt
 
 FROM base as final
 
