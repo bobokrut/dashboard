@@ -77,37 +77,25 @@
     "displayName": "Navbar",
     "description": "",
     "props": {
-      "uni_name": {
+      "dashboard_name": {
         "description": "",
-        "required": false,
-        "defaultValue": {
-          "value": "'University Name'",
-          "computed": false
-        },
+        "required": true,
         "type": {
           "name": "string",
           "raw": "string"
         }
       },
-      "uni_picture": {
+      "dashboard_picture": {
         "description": "",
-        "required": false,
-        "defaultValue": {
-          "value": "'https://cdn-icons-png.flaticon.com/512/2231/2231696.png'",
-          "computed": false
-        },
+        "required": true,
         "type": {
           "name": "string",
           "raw": "string"
         }
       },
-      "version": {
+      "dashboard_version": {
         "description": "",
-        "required": false,
-        "defaultValue": {
-          "value": "'Unknown version'",
-          "computed": false
-        },
+        "required": true,
         "type": {
           "name": "string",
           "raw": "string"
