@@ -55,6 +55,7 @@ memory-profiler = "^0.61.0"
 matplotlib = "^3.7.1"
 memray = "^1.7.0"
 filprofiler = "^2023.3.1"
+pre-commit = "^3.3.2"
 
 [build-system]
 requires = ["poetry-core"]
