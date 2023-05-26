@@ -1,4 +1,4 @@
-FROM python:3.9.16-slim as base
+FROM python:3.11.3-slim as base
 
 ARG geocode_key
 ARG secret
@@ -13,11 +13,9 @@ ENV SECRET_KEY=$secret
 
 WORKDIR /app
 
-# RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev libjpeg62-turbo-dev libopenjp2-7-dev zlib1g-dev \
-#     libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
-#     libharfbuzz-dev libfribidi-dev libxcb1-dev libpq-dev && rm -rf /var/lib/apt/lists/*
 
 FROM base as builder
+
 
 ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \

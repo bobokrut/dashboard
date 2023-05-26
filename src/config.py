@@ -5,7 +5,6 @@ from hashlib import md5
 from typing import Literal, Any
 from urllib.parse import urljoin
 from datetime import datetime
-from typing import Union
 
 import requests
 import plotly.express as px
@@ -29,7 +28,7 @@ class ConfigError(Exception):
 VisualizationType = Literal["LineChart", "Scatter", "BarChart", "Map", "PieChart"]
 
 
-def calc_hash(_hash: Union[str, list[Any]]) -> str:
+def calc_hash(_hash: str | list[Any]) -> str:
     if isinstance(_hash, list):
         _hash = str(_hash)
     return md5(_hash.encode()).hexdigest()
@@ -53,7 +52,7 @@ class App:
     scope: t.Scope
 
     @staticmethod
-    def init(config: Union[dict[str, Any], None] = None) -> None:
+    def init(config: dict[str, Any] | None = None) -> None:
         logger.info("Initializing app...")
         if not config:
             with open("config.json") as f:
@@ -66,7 +65,7 @@ class App:
             config["service"]["version"]["minor"],
             config["service"]["version"]["patch"],
         )
-        App.scope = t.Scope(config["service"]["scope"])
+        App.scope = t.Scope(config["service"]["scope"].lower())
         try:
             App.requests = App.parse_requests_config(
                 config["data_sources"]["measurements"]
@@ -92,8 +91,8 @@ class App:
             try:
                 requests[name] = Request(
                     url=request["uri"],
-                    type=t.SensorType(request["type"]),
-                    provider=t.Provider(request["provider"]),
+                    type=t.SensorType(request["type"].lower()),
+                    provider=t.Provider(request["provider"].lower()),
                     query=Query(request["query"]["type"], request["query"]["select"]),
                 )
             except KeyError as e:
@@ -175,7 +174,6 @@ class App:
                     "Please check your config file.",
                 )
                 raise ConfigError
-
     @staticmethod
     def get_data(source: str, value: str) -> pandas.Series:
         return App.requests[source].df[value]
@@ -279,9 +277,9 @@ class Query:
 
 @dataclass
 class GridItem:
-    plot: Union[Visualization, None] = None
-    selector: Union[dcc.Dropdown, None] = None
-    plot_id: Union[str, None] = None
+    plot: Visualization | None = None
+    selector: dcc.Dropdown | None = None
+    plot_id: str | None = None
 
 
 @dataclass
@@ -295,7 +293,7 @@ class Visualization:
 
     def get_data(
         self, path: str, to_series: bool = True
-    ) -> Union[pandas.DataFrame, pandas.Series]:
+    ) -> pandas.DataFrame | pandas.Series:
         result: pandas.DataFrame = self.df[path]
         if to_series:
             return result.to_series()
@@ -308,7 +306,7 @@ class Visualization:
         filter: str,
         to_series: bool = True,
         bar_chart: bool = False,
-    ) -> Union[pandas.DataFrame, pandas.Series]:
+    ) -> pandas.DataFrame | pandas.Series:
         try:
             if bar_chart:
                 filtered_df = self.df[self.df[filter_by] == filter]
@@ -357,7 +355,7 @@ class Map(Visualization):
 
         result: list[dict[str, dict]] = requests.get(
             "https://nominatim.openstreetmap.org/search",
-            params={"q": self.area, "format": "json"},
+            params={"city": self.area, "format": "json", "limit": 1},
         ).json()
 
         if not result:
@@ -522,3 +520,7 @@ class Plot(Visualization):
             return fig
 
         _func.__name__ = func_name
+
+if __name__ == "__main__":
+    app = App.init()
+    input()
