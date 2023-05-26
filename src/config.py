@@ -175,8 +175,7 @@ class App:
                 )
                 raise ConfigError
 
-            finally:
-                return plots
+        return plots
 
     @staticmethod
     def get_data(source: str, value: str) -> pandas.Series:
