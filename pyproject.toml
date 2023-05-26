@@ -7,45 +7,44 @@ readme = "README.md"
 packages = [{include = "sag_dashboard"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-asgiref = {version = "3.6.0", python = "3.9", platform = "linux"}
-certifi = {version = "2022.12.7", python = "3.9", platform = "linux"}
-charset-normalizer = {version = "3.1.0", python = "3.9", platform = "linux"}
-click = {version = "8.1.3", python = "3.9", platform = "linux"}
-dash = {version = "2.9.3", python = "3.9", platform = "linux"}
-dash-core-components = {version = "2.0.0", python = "3.9", platform = "linux"}
-dash-html-components = {version = "2.0.0", python = "3.9", platform = "linux"}
-dash-table = {version = "5.0.0", python = "3.9", platform = "linux"}
-flask = {version = "2.2.3", python = "3.9", platform = "linux"}
-flask-login = {version = "0.6.2", python = "3.9", platform = "linux"}
-h11 = {version = "0.14.0", python = "3.9", platform = "linux"}
-idna = {version = "3.4", python = "3.9", platform = "linux"}
-importlib-metadata = {version = "6.6.0", python = "3.9", platform = "linux"}
-iso6709 = {version = "0.1.5", python = "3.9", platform = "linux"}
-itsdangerous = {version = "2.1.2", python = "3.9", platform = "linux"}
-jinja2 = {version = "3.1.2", python = "3.9", platform = "linux"}
-markupsafe = {version = "2.1.2", python = "3.9", platform = "linux"}
-numpy = {version = "1.24.2", python = "3.9", platform = "linux"}
-orjson = {version = "3.8.12", python = "3.9", platform = "linux"}
-packaging = {version = "23.0", python = "3.9", platform = "linux"}
-pandas = {version = "2.0.1", python = "3.9", platform = "linux"}
-plotly = {version = "5.14.0", python = "3.9", platform = "linux"}
-pydantic = {version = "1.10.7", python = "3.9", platform = "linux"}
-python-dateutil = {version = "2.8.2", python = "3.9", platform = "linux"}
-python-dotenv = {version = "1.0.0", python = "3.9", platform = "linux"}
-pytz = {version = "2023.3", python = "3.9", platform = "linux"}
-requests = {version = "2.30.0", python = "3.9", platform = "linux"}
-setuptools = {version = "67.7.2", python = "3.9", platform = "linux"}
-six = {version = "1.16.0", python = "3.9", platform = "linux"}
-strenum = {version = "0.4.10", python = "3.9", platform = "linux"}
-tenacity = {version = "8.2.2", python = "3.9", platform = "linux"}
-typing-extensions = {version = "4.5.0", python = "3.9", platform = "linux"}
-tzdata = {version = "2023.3", python = "3.9", platform = "linux"}
-urllib3 = {version = "1.26.15", python = "3.9", platform = "linux"}
-uvicorn = {version = "0.22.0", python = "3.9", platform = "linux"}
-werkzeug = {version = "2.2.3", python = "3.9", platform = "linux"}
-wheel = {version = "0.40.0", python = "3.9", platform = "linux"}
-zipp = {version = "3.15.0", python = "3.9", platform = "linux"}
+python = "^3.11"
+asgiref = {version = "3.6.0", python = "3.11", platform = "linux"}
+certifi = {version = "2022.12.7", python = "3.11", platform = "linux"}
+charset-normalizer = {version = "3.1.0", python = "3.11", platform = "linux"}
+click = {version = "8.1.3", python = "3.11", platform = "linux"}
+dash = {version = "2.9.3", python = "3.11", platform = "linux"}
+dash-core-components = {version = "2.0.0", python = "3.11", platform = "linux"}
+dash-html-components = {version = "2.0.0", python = "3.11", platform = "linux"}
+dash-table = {version = "5.0.0", python = "3.11", platform = "linux"}
+flask = {version = "2.2.3", python = "3.11", platform = "linux"}
+flask-login = {version = "0.6.2", python = "3.11", platform = "linux"}
+h11 = {version = "0.14.0", python = "3.11", platform = "linux"}
+idna = {version = "3.4", python = "3.11", platform = "linux"}
+importlib-metadata = {version = "6.6.0", python = "3.11", platform = "linux"}
+iso6709 = {version = "0.1.5", python = "3.11", platform = "linux"}
+itsdangerous = {version = "2.1.2", python = "3.11", platform = "linux"}
+jinja2 = {version = "3.1.2", python = "3.11", platform = "linux"}
+markupsafe = {version = "2.1.2", python = "3.11", platform = "linux"}
+numpy = {version = "1.24.2", python = "3.11", platform = "linux"}
+orjson = {version = "3.8.12", python = "3.11", platform = "linux"}
+packaging = {version = "23.0", python = "3.11", platform = "linux"}
+pandas = {version = "2.0.1", python = "3.11", platform = "linux"}
+plotly = {version = "5.14.0", python = "3.11", platform = "linux"}
+pydantic = {version = "1.10.7", python = "3.11", platform = "linux"}
+python-dateutil = {version = "2.8.2", python = "3.11", platform = "linux"}
+python-dotenv = {version = "1.0.0", python = "3.11", platform = "linux"}
+pytz = {version = "2023.3", python = "3.11", platform = "linux"}
+requests = {version = "2.30.0", python = "3.11", platform = "linux"}
+setuptools = {version = "67.7.2", python = "3.11", platform = "linux"}
+six = {version = "1.16.0", python = "3.11", platform = "linux"}
+tenacity = {version = "8.2.2", python = "3.11", platform = "linux"}
+tzdata = {version = "2023.3", python = "3.11", platform = "linux"}
+urllib3 = {version = "1.26.15", python = "3.11", platform = "linux"}
+uvicorn = {version = "0.22.0", python = "3.11", platform = "linux"}
+werkzeug = {version = "2.2.3", python = "3.11", platform = "linux"}
+wheel = {version = "0.40.0", python = "3.11", platform = "linux"}
+zipp = {version = "3.15.0", python = "3.11", platform = "linux"}
+colorama = {version = "0.4.6", python = "3.11", platform = "linux"}
 
 
 [tool.poetry.group.dev.dependencies]
@@ -54,6 +53,8 @@ pytest = "^7.3.1"
 debugpy = "^1.6.7"
 memory-profiler = "^0.61.0"
 matplotlib = "^3.7.1"
+memray = "^1.7.0"
+filprofiler = "^2023.3.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -61,12 +62,12 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py311"]
 
 [tool.pyright]
 typeCheckingMode = "basic"
 venvPath = "/home/bobokrut/.cache/pypoetry/virtualenvs"
-venv = "sag-dashboard-Ls2X-tS8-py3.9"
-pythonVersion = "3.9"
+venv = "sag-dashboard-Ls2X-tS8-py3.11"
+pythonVersion = "3.11"
 useLibraryCodeForTypes = false
 
