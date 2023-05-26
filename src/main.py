@@ -37,8 +37,9 @@ def create_layout() -> list[Union[my_dash_component.Container, dcc.Graph]]:
         [
             my_dash_component.Navbar(
                 id="sag_navbar",
-                uni_name=App.name,
-                version=str(App.version),
+                dashboard_name=App.name,
+                dashboard_picture="https://www.fh-krems.ac.at/fileadmin/imc/images/logos/imc-logo-web-preview.png",
+                dashboard_version=str(App.version),
             ),
             my_dash_component.Grid(create_grid(), hash=App.hash, id="sag_grid"),
         ]
