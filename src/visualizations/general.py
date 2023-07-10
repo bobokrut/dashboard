@@ -1,0 +1,298 @@
+from typing import Literal, Any
+from dataclasses import dataclass, field
+import logging
+from abc import ABC, abstractmethod
+import textwrap
+
+import pandas
+from plotly import graph_objects as go
+from dash import Input, Output, dcc, html, callback
+import plotly.express as px
+from requests import get as r_get
+
+from ..exceptions import ConfigError
+
+logger = logging.getLogger("dash_app")
+
+VisualizationType = Literal["LineChart", "Scatter", "BarChart", "Map", "PieChart"]
+
+_all__ = [
+    "make_map",
+    "make_plot",
+    "make_plot_with_callback",
+    "Visualization",
+    "VisualizationType",
+]
+
+
+def make_map(plot_config, requests):
+    return Map(
+        source_name=plot_config["source"],
+        name=plot_config["name"],
+        type=plot_config["type"],
+        area=plot_config["extra"]["area"] if "extra" in plot_config else None,
+        lat=plot_config["data"][0],
+        lon=plot_config["data"][0],
+        label=plot_config["data"][1],
+        extra=plot_config["data"][2:],
+        requests=requests,
+    ).create()
+
+
+def make_plot_with_callback(plot_config, requests, comp_id, graph_id, func_name):
+    return Plot(
+        source_name=plot_config["source"],
+        name=plot_config["name"],
+        type=plot_config["type"],
+        traces=plot_config["traces"],
+        filter=plot_config["group_by"],
+        requests=requests,
+    ).add_callback(comp_id, graph_id, func_name)
+
+
+def make_plot(plot_config, requests):
+    return Plot(
+        source_name=plot_config["source"],
+        name=plot_config["name"],
+        type=plot_config["type"],
+        traces=plot_config["traces"],
+        requests=requests,
+    ).create()
+
+
+@dataclass
+class Visualization(ABC):
+    name: str
+    type: VisualizationType
+    source_name: str
+    requests: dict[str, Any]
+
+    @abstractmethod
+    def create(self) -> None:
+        pass
+
+    def get_data(
+        self, path: str, to_series: bool = True
+    ) -> pandas.DataFrame | pandas.Series:
+        result: pandas.DataFrame = self.df[path]
+        if to_series:
+            return result.to_series()
+        return result
+
+    def get_data_with_filter(
+        self,
+        path: str,
+        filter_by: str,
+        filter: str,
+        to_series: bool = True,
+        bar_chart: bool = False,
+    ) -> pandas.DataFrame | pandas.Series:
+        try:
+            if bar_chart:
+                filtered_df = self.df[self.df[filter_by] == filter]
+                grouped_df = filtered_df.groupby("dateObserved").agg({path: "first"})
+                sorted_df = grouped_df.sort_values("dateObserved")
+                result = sorted_df[[path]]
+            else:
+                filtered_df = self.df[self.df[filter_by] == filter]
+                result = filtered_df[[path]]
+        except KeyError as e:
+            sp = str(e).split("\n")
+            column_name = sp[0].strip()
+            df = sp[3].split(";")[0].strip()
+            raise ConfigError(
+                f"{self.type} {self.name}: Column '{column_name}' not found in dataframe {df}",
+                f"Check if 'data_sources.measurements.<name>.query.select' has this key",
+            )
+
+        if to_series:
+            return result.to_series()
+        return result
+
+    @property
+    def df(self) -> pandas.DataFrame:
+        return self.requests[self.source_name].df
+
+
+@dataclass
+class Map(Visualization):
+    lat: str
+    lon: str
+    label: str
+    area: str | None
+    extra: list[str]
+    center_cache: dict[str, dict[str, float]] = field(default_factory=dict)
+
+    def get_center(self) -> dict[str, float]:
+        if self.area in self.center_cache:
+            return self.center_cache[self.area]
+
+        result: list[dict[str, dict]] = r_get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"city": self.area, "format": "json", "limit": 1},
+        ).json()
+
+        if not result:
+            raise ValueError(f"Could not find location for {self.area}")
+
+        location = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
+        self.center_cache[self.area] = location
+        return location
+
+        # WARNING: google api deprecated
+        result: dict[str, dict] = requests.get(
+            f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
+        ).json()
+
+        if result["status"] != "OK":
+            raise ValueError(f"Could not find location for {self.area}")
+        location = result["results"][0]["geometry"]["location"]
+
+        self.center_cache[self.area] = location
+        location["lon"] = location.pop("lng")
+        return location
+
+    def create(self) -> go.Figure:
+        fig = px.scatter_mapbox(
+            lat=self.get_data(self.lat).apply(lambda x: x[0]),
+            lon=self.get_data(self.lon).apply(lambda x: x[1]),
+            hover_name=self.get_data(self.label),
+            hover_data={
+                name: self.get_data(name)
+                .astype(str)
+                .apply(lambda x: "<br>".join(textwrap.wrap(x, 40)))
+                .fillna("None")
+                for name in self.extra
+            },
+            mapbox_style="carto-positron",
+            title=self.name,
+        )
+
+        fig.update_traces(
+            hovertemplate="<b>%{hovertext}</b><br><br>"
+            + "<br>".join(
+                [
+                    f"<b>" + key.capitalize() + "</b>: %{customdata[" + str(i) + "]}"
+                    for i, key in enumerate(self.extra)
+                ]
+            ),
+        )
+
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=40, b=10),
+        )
+        if self.area:
+            try:
+                fig.update_layout(
+                    mapbox=dict(
+                        center=self.get_center(),
+                        zoom=10,
+                    )
+                )
+            except ValueError as e:
+                logger.error(e)
+        return fig
+
+    def get_data(self, path: str) -> pandas.Series:
+        try:
+            result = self.df.drop_duplicates(subset="id")[path].reset_index(drop=True)
+            return result
+
+        except KeyError as e:
+            raise ConfigError(
+                f"Map {self.name}: Column {path} not found in {self.name}",
+                f"Check if 'data_sources.measurements.<name>.query.select' has this key",
+            )
+
+
+@dataclass
+class Plot(Visualization):
+    traces: list[dict[str, str]]
+    filter: str = field(default_factory=str)
+    graph_id: str = field(init=False)
+
+    def create(self, filter_by: str = None) -> go.Figure:
+        fig = go.Figure()
+        if self.type == "LineChart":
+            for trace in self.traces:
+                fig.add_scatter(
+                    x=self.get_data(trace["x"])
+                    if not self.filter
+                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),
+                    y=self.get_data(trace["y"])
+                    if not self.filter
+                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),
+                    mode="lines+markers",
+                    name=trace["y"],
+                )
+
+        elif self.type == "Scatter":
+            for trace in self.traces:
+                fig.add_scatter(
+                    x=self.get_data(trace["x"])
+                    if not self.filter
+                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),
+                    y=self.get_data(trace["y"])
+                    if not self.filter
+                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),
+                    mode="markers",
+                    name=trace["y"],
+                )
+        elif self.type == "BarChart":
+            for trace in self.traces:
+                fig.add_bar(
+                    x=self.get_data("dateObserved").sort()
+                    if not self.filter
+                    else self.get_data_with_filter(
+                        "dateObserved", self.filter, filter_by
+                    ).sort(),
+                    y=self.get_data(trace)
+                    if not self.filter
+                    else self.get_data_with_filter(
+                        trace, self.filter, filter_by, bar_chart=True
+                    ),
+                    name=trace,
+                )
+        elif self.type == "PieChart":
+            values = []
+            labels = self.traces
+            for trace in self.traces:
+                values.append(
+                    self.get_data(trace).sum()
+                    if not self.filter
+                    else self.get_data_with_filter(trace, self.filter, filter_by).sum()
+                )
+            fig.add_pie(values=values, labels=labels, hole=0.3)
+
+        fig.update_layout(
+            title=self.name,
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            ),
+            showlegend=True,
+            margin=dict(l=20, r=60, t=40, b=20),
+        )
+        return fig
+
+    def add_callback(self, comp_id: str, graph_id: str, func_name: str) -> None:
+        @callback(
+            Output(component_id=graph_id, component_property="figure"),
+            Input(component_id=comp_id, component_property="value"),
+        )
+        def _func(input: str) -> go.Figure:
+            if input:
+                return self.create(input)
+
+            fig = go.Figure()
+            fig.update_layout(
+                title=self.name,
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+                ),
+                showlegend=True,
+                margin=dict(l=20, r=60, t=40, b=20),
+            )
+
+            return fig
+
+        _func.__name__ = func_name
