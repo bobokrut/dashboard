@@ -84,15 +84,7 @@ def create_app(app_config: dict[str, Any] | None = None) -> App:
             content = f.read()
         app_config: dict[str, Any] = orjson.loads(content)
 
-    service = t.Service(
-        name=app_config["service"]["name"],
-        version=t.Version(
-            app_config["service"]["version"]["major"],
-            app_config["service"]["version"]["minor"],
-            app_config["service"]["version"]["patch"],
-        ),
-        scope=t.Scope(app_config["service"]["scope"].lower()),
-    )
+    service = _create_service(app_config)
 
     try:
         requests = _parse_requests_config(app_config["data_sources"]["measurements"])
@@ -112,6 +104,18 @@ def create_app(app_config: dict[str, Any] | None = None) -> App:
         hash = _calc_hash("empty")
 
     return App(service, requests, plots, hash)
+
+
+def _create_service(app_config: dict[str, Any]) -> t.Service:
+    return t.Service(
+        name=app_config["service"]["name"],
+        version=t.Version(
+            app_config["service"]["version"]["major"],
+            app_config["service"]["version"]["minor"],
+            app_config["service"]["version"]["patch"],
+        ),
+        scope=t.Scope(app_config["service"]["scope"].lower()),
+    )
 
 
 def _calc_hash(_to_hash: str | dict[str, Any]) -> str:
@@ -152,45 +156,12 @@ def _parse_plots_config(data: dict[str, Any], requests) -> list[GridItem]:
     for i, plot in enumerate(data.values()):
         try:
             if plot["type"] == "Map":
-                plots.append(
-                    GridItem(
-                        plot=make_map(plot, requests),
-                    )
-                )
+                plot_item = _parse_plots_config_map(plot, requests)
             else:
-                if group_by := plot.get("group_by"):
-                    comp_id = f"sag-selector-{i}"
-                    graph_id = f"sag-plot{i}"
-                    func_name = f"update_graph_{i}"
-                    plots.append(
-                        GridItem(
-                            selector=(
-                                html.Label(group_by.casefold().capitalize()),
-                                dcc.Dropdown(
-                                    _get_data(requests, plot["source"], group_by)
-                                    .unique()
-                                    .sort()
-                                    .to_list(),
-                                    id=comp_id,
-                                ),
-                            ),
-                            plot_id=graph_id,
-                        )
-                    )
+                plot_item = _parse_plots_config_plot(plot, requests, i)
 
-                    make_plot_with_callback(
-                        plot,
-                        requests=requests,
-                        comp_id=comp_id,
-                        graph_id=graph_id,
-                        func_name=func_name,
-                    )
-                else:
-                    plots.append(
-                        GridItem(
-                            plot=make_plot(plot, requests),
-                        )
-                    )
+            plots.append(plot_item)
+
         except KeyError as e:
             raise ConfigError(f"Missing key {e} in plot {plot['name']}")
 
@@ -201,6 +172,47 @@ def _parse_plots_config(data: dict[str, Any], requests) -> list[GridItem]:
             )
 
     return plots
+
+
+def _parse_plots_config_map(plot: dict[str, Any], requests) -> GridItem:
+    return GridItem(
+        plot=make_map(plot, requests),
+    )
+
+
+def _parse_plots_config_plot(plot: dict[str, Any], requests, i: int) -> GridItem:
+    if group_by := plot.get("group_by"):
+        comp_id = f"sag-selector-{i}"
+        graph_id = f"sag-plot{i}"
+        func_name = f"update_graph_{i}"
+
+        make_plot_with_callback(
+            plot,
+            requests=requests,
+            comp_id=comp_id,
+            graph_id=graph_id,
+            func_name=func_name,
+        )
+        return GridItem(
+            selector=_create_selector(group_by, comp_id, requests, plot["source"]),
+            plot_id=graph_id,
+        )
+
+    return GridItem(
+        plot=make_plot(plot, requests),
+    )
+
+
+def _create_selector(
+    group_by: str, comp_id: str, requests: dict[str, Request], source: str
+):
+    return (
+        html.Label(group_by.casefold().capitalize()),
+        dcc.Dropdown(
+            _get_data(requests, source, group_by).unique().sort().to_list(),
+            id=comp_id,
+        ),
+    )
 
 
 def _get_data(requests, source: str, value: str) -> pandas.Series:
