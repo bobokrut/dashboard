@@ -19,6 +19,7 @@ python-dotenv = {version = "1.0.0", python = "3.11", platform = "linux"}
 requests = {version = "2.30.0", python = "3.11", platform = "linux"}
 uvicorn = {version = "0.22.0", python = "3.11", platform = "linux"}
 flask-login = "^0.6.2"
+pre-commit = "^3.3.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -31,6 +32,10 @@ memray = "^1.7.0"
 filprofiler = "^2023.3.1"
 pre-commit = "^3.3.2"
 
+
+[tool.poetry.group.extra.dependencies]
+jsonschema = "^4.17.3"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
@@ -42,7 +47,11 @@ target-version = ["py311"]
 [tool.pyright]
 typeCheckingMode = "basic"
 venvPath = "/home/bobokrut/.cache/pypoetry/virtualenvs"
-venv = "sag-dashboard-Ls2X-tS8-py3.11"
+venv = "sag-dashboard-pSCj5UPf-py3.11"
 pythonVersion = "3.11"
 useLibraryCodeForTypes = false
+
+[tool.pytest.ini_options]
+addopts = "-r x"
+
 
