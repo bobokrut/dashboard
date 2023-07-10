@@ -1,145 +1,81 @@
-import my_dash_component
-from .config import App
-from .init_dash import app, server
-from dash import dcc, html
+from dash import dcc, html, Input, Output, no_update
 from flask import redirect, Response, request
 from werkzeug.datastructures import FileStorage
+from werkzeug.wrappers import Response as WerkzeugResponse
 import orjson
 from asgiref.wsgi import WsgiToAsgi
-import click
-import logging
-from copy import copy
-import sys
-from flask_login import login_required
+import tracemalloc
 
-from typing import Union, Optional, Literal
+tracemalloc.start()
+
+from .config import App, create_app
+from .init_dash import app, server, setup
+import my_dash_component
+
+APP: App = None  # type: ignore
 
 
-def create_layout() -> list[Union[my_dash_component.Container, dcc.Graph]]:
-    def create_grid():
-        grid = []
-        for grid_item in App.plots:
-            if grid_item.selector:
-                grid.append(
-                    my_dash_component.Container(
-                        [
-                            grid_item.selector[0],
-                            grid_item.selector[1],
-                            dcc.Graph(className="w-full h-full", id=grid_item.plot_id),
-                        ]
-                    )
+def create_grid():
+    grid = []
+    for grid_item in APP.plots:
+        if grid_item.selector:
+            grid.append(
+                my_dash_component.Container(
+                    [
+                        grid_item.selector[0],
+                        grid_item.selector[1],
+                        dcc.Graph(className="w-full h-full", id=grid_item.plot_id),
+                    ]
                 )
-            else:
-                grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
-        return grid
+            )
+        else:
+            grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
+    return grid
 
+
+def create_layout() -> list[my_dash_component.Container | dcc.Graph]:
     return html.Div(
         [
+            dcc.Location(id="sag_url", refresh=False),
             my_dash_component.Navbar(
                 id="sag_navbar",
-                dashboard_name=App.name,
+                dashboard_name=APP.service.name,
                 dashboard_picture="https://www.fh-krems.ac.at/fileadmin/imc/images/logos/imc-logo-web-preview.png",
-                dashboard_version=str(App.version),
+                dashboard_version=str(APP.service.version),
             ),
-            my_dash_component.Grid(create_grid(), hash=App.hash, id="sag_grid"),
+            my_dash_component.Grid(create_grid(), hash=APP.hash, id="sag_grid"),
         ]
     )
 
 
 def init_dash() -> None:
-    App.init()
+    global APP
+    APP = create_app()
     app.layout = create_layout
 
 
 @server.route("/")
-def index() -> Response:
+def index() -> WerkzeugResponse:
     return redirect("/dash/")
 
 
 @server.route("/config", methods=["POST"])
 def change_config() -> Response:
+    global APP
+
     file: FileStorage = list(request.files.values())[0]
     new_config = orjson.loads(file.stream.read().decode("utf-8"))
     file.stream.seek(0)
     file.save("config.json")
-    App.init(new_config)
+    APP = create_app(new_config)
     return Response(status=200)
 
 
-def config_logging() -> None:
-    logger = logging.getLogger("dash_app")
-    logger.setLevel(logging.DEBUG)
-
-    class ColourizedFormatter(logging.Formatter):
-        """
-        A custom log formatter class that:
-
-        * Outputs the LOG_LEVEL with an appropriate color.
-        * If a log call includes an `extras={"color_message": ...}` it will be used
-          for formatting the output, instead of the plain text message.
-        """
-
-        level_name_colors = {
-            5: lambda level_name: click.style(str(level_name), fg="blue"),
-            logging.DEBUG: lambda level_name: click.style(str(level_name), fg="cyan"),
-            logging.INFO: lambda level_name: click.style(str(level_name), fg="green"),
-            logging.WARNING: lambda level_name: click.style(
-                str(level_name), fg="yellow"
-            ),
-            logging.ERROR: lambda level_name: click.style(str(level_name), fg="red"),
-            logging.CRITICAL: lambda level_name: click.style(
-                str(level_name), fg="bright_red"
-            ),
-        }
-
-        def __init__(
-            self,
-            fmt: Optional[str] = None,
-            datefmt: Optional[str] = None,
-            style: Literal["%", "{", "$"] = "%",
-        ):
-            super().__init__(fmt=fmt, datefmt=datefmt, style=style)
-
-        def color_level_name(self, level_name: str, level_no: int) -> str:
-            def default(level_name: str) -> str:
-                return str(level_name)
-
-            func = self.level_name_colors.get(level_no, default)
-            return func(level_name)
-
-        def formatMessage(self, record: logging.LogRecord) -> str:
-            recordcopy = copy(record)
-            levelname = recordcopy.levelname
-            seperator = " " * (8 - len(recordcopy.levelname))
-            levelname = self.color_level_name(levelname, recordcopy.levelno)
-            if "color_message" in recordcopy.__dict__:
-                recordcopy.msg = recordcopy.__dict__["color_message"]
-                recordcopy.__dict__["message"] = recordcopy.getMessage()
-            recordcopy.__dict__["levelprefix"] = levelname + ":" + seperator
-            return super().formatMessage(recordcopy)
-
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(
-        ColourizedFormatter(
-            "%(levelprefix)s [%(name)s] %(module)s:%(funcName)s:%(lineno)d - %(message)s"
-        )
-    )
-    logger.addHandler(stream_handler)
-
-
-def secure_dash() -> None:
-    global server
-    for view_func in server.view_functions:
-        if view_func.startswith("/dash/"):
-            server.view_functions[view_func] = login_required(
-                server.view_functions[view_func]
-            )
-
-
 def create_server() -> WsgiToAsgi:
-    global server
-    config_logging()
+    setup()
     init_dash()
-    secure_dash()
-    server = WsgiToAsgi(server)
-    return server
+    # print memory usage
+    snapshot = tracemalloc.take_snapshot()
+    snapshot.dump("mem_profile.txt")
+
+    return WsgiToAsgi(server)
