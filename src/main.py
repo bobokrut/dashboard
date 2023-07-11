@@ -1,16 +1,18 @@
-from dash import dcc, html, Input, Output, no_update
-from flask import redirect, Response, request
-from werkzeug.datastructures import FileStorage
-from werkzeug.wrappers import Response as WerkzeugResponse
+import tracemalloc
+
 import orjson
 from asgiref.wsgi import WsgiToAsgi
-import tracemalloc
+from dash import Input, Output, dcc, html, no_update
+from flask import Response, redirect, request
+from werkzeug.datastructures import FileStorage
+from werkzeug.wrappers import Response as WerkzeugResponse
 
 tracemalloc.start()
 
+import my_dash_component
+
 from .config import App, create_app
 from .init_dash import app, server, setup
-import my_dash_component
 
 APP: App = None  # type: ignore
 

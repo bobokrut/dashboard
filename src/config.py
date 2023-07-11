@@ -1,25 +1,20 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from hashlib import md5
 from typing import Any, NamedTuple
 from urllib.parse import urljoin
 
-from requests import get as r_get
 import orjson
 import pandas
 from dash import dcc, html
+from requests import get as r_get
 
 from . import ssdl_types as t
-import logging
-from .parser import parse
 from .exceptions import ConfigError
-from .visualizations import (
-    make_plot,
-    make_map,
-    make_plot_with_callback,
-    Visualization,
-)
+from .parser import parse
+from .visualizations import Visualization, make_map, make_plot, make_plot_with_callback
 
 logger = logging.getLogger("dash_app")
 

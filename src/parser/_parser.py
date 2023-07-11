@@ -1,10 +1,9 @@
-from dateutil.parser import parse as parse_date
-
-from typing import Any, NewType
+import re
 from collections import namedtuple
 from types import FunctionType
-from typing import TypeAlias
-import re
+from typing import Any, NewType, TypeAlias
+
+from dateutil.parser import parse as parse_date
 
 Url = NewType("Url", str)
 Position = namedtuple("Position", ["lat", "lon"])

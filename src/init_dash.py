@@ -1,16 +1,15 @@
+import logging
+import sys
+from copy import copy
+from typing import Literal, Optional
+
+import click
 import dash
 from flask import Flask
-import click
 from flask_login import login_required
-
-from typing import Optional, Literal
-import logging
-from copy import copy
-import sys
 
 from .env import SECRET_KEY
 from .user_auth import auth, login_manager
-
 
 server = Flask(
     __name__,

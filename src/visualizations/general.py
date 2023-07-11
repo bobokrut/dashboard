@@ -1,13 +1,13 @@
-from typing import Literal, Any
-from dataclasses import dataclass, field
 import logging
-from abc import ABC, abstractmethod
 import textwrap
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 import pandas
-from plotly import graph_objects as go
-from dash import Input, Output, dcc, html, callback
 import plotly.express as px
+from dash import Input, Output, callback
+from plotly import graph_objects as go
 from requests import get as r_get
 
 from ..exceptions import ConfigError

@@ -1,11 +1,9 @@
-from flask import request, redirect, Blueprint, render_template, url_for, flash
-from flask_login import login_required, login_user, logout_user
-
-from werkzeug.wrappers.response import Response
-from flask_login import LoginManager, UserMixin
 from logging import getLogger
-
 from typing import Any
+
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from werkzeug.wrappers.response import Response
 
 auth = Blueprint("auth", __name__)
 login_manager: LoginManager = LoginManager()

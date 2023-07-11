@@ -1,7 +1,5 @@
-import json
-import jsonschema
-from jsonschema.validators import RefResolver
 import requests
+from jsonschema.validators import RefResolver
 
 current_url = ""
 
