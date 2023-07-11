@@ -1,6 +1,7 @@
 import requests
-from src.parsers._parser import get_parsers
-from src.parsers import parse
+
+from src.parser import parse
+from src.parser._parser import get_parsers
 
 
 def test_parse_without_errors():

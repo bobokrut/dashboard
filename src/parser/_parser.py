@@ -65,7 +65,7 @@ def _parse_address(address: dict[str, Any]) -> str:
 
     if "streetAddress" in address:
         return_address += (
-            address["streetAddress"]
+            f"{address['streetAddress']}, "
             if "streerNr" not in address
             else f"{address['streetAddress']} {address['streetNr']}, "
         )
@@ -104,6 +104,13 @@ def __parse_old(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
         raise ParserException(f"Parser for {e} not found")
 
 
+def _parse_value(value: Any) -> Any:
+    if re.fullmatch(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b", value):
+        return parse_date(value)
+
+    return value
+
+
 def _parse(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
     to_return = []
     parsers = get_parsers()
@@ -118,11 +125,6 @@ def _parse(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
             ):  # If there is a custom parser to parse an object
                 l.append(parsers[f"_parse_{key}"](item))
 
-            elif isinstance(item, str) and re.fullmatch(
-                r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\b", item
-            ):  # If the item is a date
-                l.append(parse_date(item))
-
             elif isinstance(item, str):
                 l.append(item)
 
@@ -131,7 +133,7 @@ def _parse(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
                 and "value" in item
                 and not isinstance(item["value"], dict)
             ):
-                l.append(item["value"])
+                l.append(_parse_value(item["value"]))
 
             else:
                 raise ParserException(f"Parser for {key} not found\nValue: {item}")

@@ -1,11 +1,9 @@
-from pytest import fixture
 import pytest
 import requests
-from src.parsers._helpers import (
-    get_all_keys,
-    expand_json_schema,
-)
-from src.parsers._parser import get_parsers
+from pytest import fixture
+
+from src.parser._helpers import expand_json_schema, get_all_keys
+from src.parser._parser import get_parsers
 
 URLS_CONFIG = {
     "PointOfInterest": "https://raw.githubusercontent.com/smart-data-models/dataModel.PointOfInterest/master/PointOfInterest/schema.json",
