@@ -38,12 +38,12 @@ def login_post() -> Response:
 
     if not username or username not in users:
         flash("No such user")
-        print("No such user")
+        logger.info(f"No such user: {username}")
         return redirect(url_for("auth.login_get"))
 
     if not users[username].check_password(password):
         flash("Please check your login details and try again.")
-        print("Please check your login details and try again.")
+        logger.info(f"Wrong password for user {username}")
         return redirect(url_for("auth.login_get"))
 
     user = users.get(username)

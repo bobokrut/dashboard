@@ -101,7 +101,7 @@ class Visualization(ABC):
             df = sp[3].split(";")[0].strip()
             raise ConfigError(
                 f"{self.type} {self.name}: Column '{column_name}' not found in dataframe {df}",
-                f"Check if 'data_sources.measurements.<name>.query.select' has this key",
+                "Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
 
         return result.to_series() if to_series else result
@@ -137,17 +137,19 @@ class Map(Visualization):
         return location
 
         # WARNING: google api deprecated
-        result: dict[str, dict] = requests.get(
-            f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
-        ).json()
 
-        if result["status"] != "OK":
-            raise ValueError(f"Could not find location for {self.area}")
-        location = result["results"][0]["geometry"]["location"]
-
-        self.center_cache[self.area] = location
-        location["lon"] = location.pop("lng")
-        return location
+        # result: dict[str, dict] = requests.get(
+        #     f"https://maps.googleapis.com/maps/api/geocode/json?address={self.area}&key={GEOCODING_KEY}"
+        # ).json()
+        #
+        # if result["status"] != "OK":
+        #     raise ValueError(f"Could not find location for {self.area}")
+        # location = result["results"][0]["geometry"]["location"]
+        #
+        # self.center_cache[self.area] = location
+        # location["lon"] = location.pop("lng")
+        # return location
+        #
 
     def create(self) -> go.Figure:
         fig = px.scatter_mapbox(
@@ -169,7 +171,7 @@ class Map(Visualization):
             hovertemplate="<b>%{hovertext}</b><br><br>"
             + "<br>".join(
                 [
-                    f"<b>" + key.capitalize() + "</b>: %{customdata[" + str(i) + "]}"
+                    "<b>" + key.capitalize() + "</b>: %{customdata[" + str(i) + "]}"
                     for i, key in enumerate(self.extra)
                 ]
             ),
@@ -195,10 +197,10 @@ class Map(Visualization):
             result = self.df.drop_duplicates(subset="id")[path].reset_index(drop=True)
             return result
 
-        except KeyError as e:
+        except KeyError:
             raise ConfigError(
                 f"Map {self.name}: Column {path} not found in {self.name}",
-                f"Check if 'data_sources.measurements.<name>.query.select' has this key",
+                "Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
 
 
