@@ -12,6 +12,13 @@ repos:
         name: isort (python)
         args: [--profile, black, --filter-files, --quiet]
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.0.277
+    hooks:
+      - id: ruff
+        args: [--select, T20, --select, E, --ignore, E501, --ignore, E402]
+
   - repo: local
     hooks:
       - id: pytest-check
@@ -22,13 +29,6 @@ repos:
         always_run: false
         types_or: [python]
         require_serial: true
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.0.277
-    hooks:
-      - id: ruff
-        args: [--select, T20, --select, E, --ignore, E501, --ignore, E402]
 
 default_language_version:
     python: python3.11
