@@ -176,4 +176,3 @@ config2.json
 config3.json
 poetry.lock
 /tailwind.css
-.pre-commit-config.yaml
