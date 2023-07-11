@@ -75,9 +75,8 @@ class Visualization(ABC):
         self, path: str, to_series: bool = True
     ) -> pandas.DataFrame | pandas.Series:
         result: pandas.DataFrame = self.df[path]
-        if to_series:
-            return result.to_series()
-        return result
+
+        return result.to_series() if to_series else result
 
     def get_data_with_filter(
         self,
@@ -105,9 +104,7 @@ class Visualization(ABC):
                 f"Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
 
-        if to_series:
-            return result.to_series()
-        return result
+        return result.to_series() if to_series else result
 
     @property
     def df(self) -> pandas.DataFrame:
