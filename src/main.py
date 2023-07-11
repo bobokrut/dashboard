@@ -2,7 +2,7 @@ import tracemalloc
 
 import orjson
 from asgiref.wsgi import WsgiToAsgi
-from dash import Input, Output, dcc, html, no_update
+from dash import dcc, html
 from flask import Response, redirect, request
 from werkzeug.datastructures import FileStorage
 from werkzeug.wrappers import Response as WerkzeugResponse

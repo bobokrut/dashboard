@@ -56,7 +56,7 @@ def _parse_location(
                 for line_string in location["value"]["coordinates"]
             ]
         case _:
-            raise NotImplemented
+            raise NotImplementedError
 
 
 def _parse_address(address: dict[str, Any]) -> str:
@@ -66,7 +66,7 @@ def _parse_address(address: dict[str, Any]) -> str:
     if "streetAddress" in address:
         return_address += (
             address["streetAddress"]
-            if not "streerNr" in address
+            if "streerNr" not in address
             else f"{address['streetAddress']} {address['streetNr']}, "
         )
 

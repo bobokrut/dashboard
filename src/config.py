@@ -69,7 +69,7 @@ class App(NamedTuple):
     hash: str
 
 
-def create_app(app_config: dict[str, Any] | None = None) -> App:
+def create_app(app_config: dict[str, Any] | None = None) -> App:  # pyright: ignore
     requests = {}
 
     logger.info("Initializing app...")
@@ -160,7 +160,7 @@ def _parse_plots_config(data: dict[str, Any], requests) -> list[GridItem]:
         except KeyError as e:
             raise ConfigError(f"Missing key {e} in plot {plot['name']}")
 
-        except IndexError as e:
+        except IndexError:
             raise ConfigError(
                 f"Invalid config file. Chech if '{plot['name']}.data' has at least 2 items. {plot['data']=}",
                 "Please check your config file.",

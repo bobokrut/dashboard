@@ -34,9 +34,9 @@ users: dict[str, User] = {
 def login_post() -> Response:
     username: str = request.form.get("username")  # type: ignore
     password: str = request.form.get("password")  # type: ignore
-    remember: str = request.form.get("remember")
+    # remember: str = request.form.get("remember")
 
-    if not username or not username in users:
+    if not username or username not in users:
         flash("No such user")
         print("No such user")
         return redirect(url_for("auth.login_get"))
