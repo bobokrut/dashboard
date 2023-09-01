@@ -1,3 +1,8 @@
+# NOTE: This file is not used in the project.
+import warnings
+
+warnings.warn("This file is not used in the project.", ImportWarning)
+
 import requests
 from jsonschema.validators import RefResolver
 
