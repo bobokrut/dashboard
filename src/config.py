@@ -7,9 +7,12 @@ from typing import Any, NamedTuple
 from urllib.parse import urljoin
 
 import orjson
-import pandas
+import polars as pl
 from dash import dcc, html
+from dash.dash_table import DataTable
 from requests import get as r_get
+
+from src.visualizations.general import make_table
 
 from . import ssdl_types as t
 from .exceptions import ConfigError
@@ -25,8 +28,9 @@ class Request:
     provider: t.Provider
     type: t.SensorType
     query: Query
+    to_table: bool
 
-    df: pandas.DataFrame = field(init=False)
+    df: pl.DataFrame = field(init=False)
 
     def __post_init__(self) -> None:
         if not self.url.endswith("entities"):
@@ -40,7 +44,7 @@ class Request:
         self._request()
 
     def _request(self) -> None:
-        resp = r_get(self.url)
+        resp = r_get(self.url, params={"type": self.query.type})
         data = orjson.loads(resp.content)
 
         if not data:
@@ -48,7 +52,10 @@ class Request:
 
         data_list: list[list[Any]] = parse(data, self.query.select)
 
-        self.df = pandas.DataFrame(data_list, columns=self.query.select)
+        self.df = pl.DataFrame(data_list, schema=self.query.select)
+
+    def _convert_to_table(self) -> DataTable:
+        return make_table(self.df)
 
 
 class Query(NamedTuple):
@@ -66,6 +73,7 @@ class App(NamedTuple):
     service: t.Service
     requests: dict[str, Request]
     plots: list[GridItem]
+    tables: list[GridItem]
     hash: str
 
 
@@ -75,7 +83,7 @@ def create_app(app_config: dict[str, Any] | None = None) -> App:  # pyright: ign
     logger.info("Initializing app...")
 
     if app_config is None:
-        with open("config.json") as f:
+        with open("config1.json") as f:
             content = f.read()
         app_config: dict[str, Any] = orjson.loads(content)
 
@@ -86,19 +94,28 @@ def create_app(app_config: dict[str, Any] | None = None) -> App:  # pyright: ign
         plots = _parse_plots_config(
             app_config["application"]["visualizations"], requests
         )
+        tables = _create_tables(requests)
         hash = _calc_hash(str(app_config["application"]["visualizations"]))
 
     except ConfigError as e:
         e.log()
         plots = []
+        tables = []
         hash = _calc_hash("empty")
 
     except Exception as e:
-        logger.error(e)
+        logger.exception(e)
         plots = []
+        tables = []
         hash = _calc_hash("empty")
 
-    return App(service, requests, plots, hash)
+    return App(
+        service,
+        requests,
+        plots,
+        tables,
+        hash,
+    )
 
 
 def _create_service(app_config: dict[str, Any]) -> t.Service:
@@ -136,6 +153,7 @@ def _parse_requests_config(data: dict[str, Any]) -> dict[str, Request]:
                 type=t.SensorType(request["type"].lower()),
                 provider=t.Provider(request["provider"].lower()),
                 query=Query(request["query"]["type"], request["query"]["select"]),
+                to_table=request.get("table", False),
             )
         except KeyError as e:
             raise ConfigError(
@@ -144,6 +162,15 @@ def _parse_requests_config(data: dict[str, Any]) -> dict[str, Request]:
             )
 
     return requests
+
+
+def _create_tables(requests: dict[str, Request]) -> list[GridItem]:
+    tables = []
+    for request in requests.values():
+        if request.to_table:
+            tables.append(GridItem(plot=request._convert_to_table()))
+
+    return tables
 
 
 def _parse_plots_config(data: dict[str, Any], requests) -> list[GridItem]:
@@ -165,7 +192,6 @@ def _parse_plots_config(data: dict[str, Any], requests) -> list[GridItem]:
                 f"Invalid config file. Chech if '{plot['name']}.data' has at least 2 items. {plot['data']=}",
                 "Please check your config file.",
             )
-
     return plots
 
 
@@ -210,5 +236,5 @@ def _create_selector(
     )
 
 
-def _get_data(requests, source: str, value: str) -> pandas.Series:
-    return requests[source].df[value]
+def _get_data(requests: dict[str, Request], source: str, value: str) -> pl.Series:
+    return requests[source].df.select(pl.col(value)).to_series()

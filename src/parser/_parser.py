@@ -105,7 +105,9 @@ def __parse_old(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
 
 
 def _parse_value(value: Any) -> Any:
-    if re.fullmatch(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b", value):
+    if isinstance(value, str) and re.fullmatch(
+        r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b", value
+    ):
         return parse_date(value)
 
     return value
@@ -116,29 +118,29 @@ def _parse(data: FiwareJson, keys: list[str]) -> list[list[Any]]:
     parsers = get_parsers()
 
     for d in data:
-        l = []
+        parsed = []
         for key in keys:
             item = d[key]
 
             if (
                 f"_parse_{key}" in parsers
             ):  # If there is a custom parser to parse an object
-                l.append(parsers[f"_parse_{key}"](item))
+                parsed.append(parsers[f"_parse_{key}"](item))
 
             elif isinstance(item, str):
-                l.append(item)
+                parsed.append(item)
 
             elif (
                 isinstance(item, dict)
                 and "value" in item
                 and not isinstance(item["value"], dict)
             ):
-                l.append(_parse_value(item["value"]))
+                parsed.append(_parse_value(item["value"]))
 
             else:
                 raise ParserException(f"Parser for {key} not found\nValue: {item}")
 
-        to_return.append(l)
+        to_return.append(parsed)
 
     return to_return
 

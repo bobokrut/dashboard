@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-import pandas
 import plotly.express as px
+import polars as pl
 from dash import Input, Output, callback
 from plotly import graph_objects as go
 from requests import get as r_get
@@ -19,6 +19,7 @@ VisualizationType = Literal["LineChart", "Scatter", "BarChart", "Map", "PieChart
 _all__ = [
     "make_map",
     "make_plot",
+    "make_table",
     "make_plot_with_callback",
     "Visualization",
     "VisualizationType",
@@ -60,6 +61,29 @@ def make_plot(plot_config, requests):
     ).create()
 
 
+def make_table(df) -> go.Figure:
+    fig = go.Figure(
+        data=[
+            go.Table(
+                header=dict(
+                    values=list(df.columns),
+                    font=dict(size=10),
+                    align="center",
+                ),
+                cells=dict(
+                    values=[df[col] for col in df.columns],
+                    align="center",
+                    height=30,
+                ),
+            )
+        ]
+    )
+    fig.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+    )
+    return fig
+
+
 @dataclass
 class Visualization(ABC):
     name: str
@@ -71,30 +95,35 @@ class Visualization(ABC):
     def create(self) -> None:
         pass
 
-    def get_data(
-        self, path: str, to_series: bool = True
-    ) -> pandas.DataFrame | pandas.Series:
-        result: pandas.DataFrame = self.df[path]
-
-        return result.to_series() if to_series else result
+    def get_data(self, path: str) -> pl.Series:
+        return self.df.select(pl.col(path)).to_series()
 
     def get_data_with_filter(
         self,
         path: str,
         filter_by: str,
         filter: str,
-        to_series: bool = True,
         bar_chart: bool = False,
-    ) -> pandas.DataFrame | pandas.Series:
+    ) -> pl.Series:
         try:
             if bar_chart:
-                filtered_df = self.df[self.df[filter_by] == filter]
-                grouped_df = filtered_df.groupby("dateObserved").agg({path: "first"})
-                sorted_df = grouped_df.sort_values("dateObserved")
-                result = sorted_df[[path]]
+                # filtered_df = self.df[self.df[filter_by] == filter]
+                # grouped_df = filtered_df.groupby("dateObserved").agg({path: "first"})
+                # sorted_df = grouped_df.sort_values("dateObserved")
+                # result = sorted_df[[path]]
+                result = (
+                    self.df.filter(pl.col(filter_by) == filter)
+                    .group_by("dateObserved")
+                    .agg(pl.first(path))
+                    .sort("dateObserved")
+                    .select(pl.col(path))
+                )
             else:
-                filtered_df = self.df[self.df[filter_by] == filter]
-                result = filtered_df[[path]]
+                # filtered_df = self.df[self.df[filter_by] == filter]
+                # result = filtered_df[[path]]
+                result = self.df.filter(pl.col(filter_by) == filter).select(
+                    pl.col(path)
+                )
         except KeyError as e:
             sp = str(e).split("\n")
             column_name = sp[0].strip()
@@ -104,10 +133,10 @@ class Visualization(ABC):
                 "Check if 'data_sources.measurements.<name>.query.select' has this key",
             )
 
-        return result.to_series() if to_series else result
+        return result.to_series()
 
     @property
-    def df(self) -> pandas.DataFrame:
+    def df(self) -> pl.DataFrame:
         return self.requests[self.source_name].df
 
 
@@ -158,9 +187,9 @@ class Map(Visualization):
             hover_name=self.get_data(self.label),
             hover_data={
                 name: self.get_data(name)
-                .astype(str)
+                .cast(pl.Utf8)
                 .apply(lambda x: "<br>".join(textwrap.wrap(x, 40)))
-                .fillna("None")
+                .fill_null("unknown")
                 for name in self.extra
             },
             mapbox_style="carto-positron",
@@ -192,9 +221,9 @@ class Map(Visualization):
                 logger.error(e)
         return fig
 
-    def get_data(self, path: str) -> pandas.Series:
+    def get_data(self, path: str) -> pl.Series:
         try:
-            result = self.df.drop_duplicates(subset="id")[path].reset_index(drop=True)
+            result = self.df.unique(subset="id").select(pl.col(path)).to_series()
             return result
 
         except KeyError:

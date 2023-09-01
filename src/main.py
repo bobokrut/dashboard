@@ -32,6 +32,9 @@ def create_grid():
             )
         else:
             grid.append(dcc.Graph(className="w-full h-full", figure=grid_item.plot))
+    for grid_item in APP.tables:
+        grid.append(dcc.Graph(className="w-full", figure=grid_item.plot))
+
     return grid
 
 
