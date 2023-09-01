@@ -1,13 +1,9 @@
-import tracemalloc
-
 import orjson
 from asgiref.wsgi import WsgiToAsgi
 from dash import dcc, html
 from flask import Response, redirect, request
 from werkzeug.datastructures import FileStorage
 from werkzeug.wrappers import Response as WerkzeugResponse
-
-tracemalloc.start()
 
 import my_dash_component
 
@@ -79,8 +75,5 @@ def change_config() -> Response:
 def create_server() -> WsgiToAsgi:
     setup()
     init_dash()
-    # print memory usage
-    snapshot = tracemalloc.take_snapshot()
-    snapshot.dump("mem_profile.txt")
 
     return WsgiToAsgi(server)
