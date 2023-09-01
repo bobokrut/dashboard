@@ -19,7 +19,8 @@ python-dotenv = {version = "1.0.0", python = "3.11", platform = "linux"}
 requests = {version = "2.30.0", python = "3.11", platform = "linux"}
 uvicorn = {version = "0.22.0", python = "3.11", platform = "linux"}
 flask-login = "^0.6.2"
-pre-commit = "^3.3.3"
+setuptools = "^68.0.0"
+polars = "^0.19.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -30,7 +31,8 @@ memory-profiler = "^0.61.0"
 matplotlib = "^3.7.1"
 memray = "^1.7.0"
 filprofiler = "^2023.3.1"
-pre-commit = "^3.3.2"
+isort = "^5.12.0"
+ruff = "^0.0.277"
 
 
 [tool.poetry.group.extra.dependencies]
@@ -53,5 +55,9 @@ useLibraryCodeForTypes = false
 
 [tool.pytest.ini_options]
 addopts = "-r x"
+
+[tool.ruff]
+select = ["E", "F", "T20"]
+ignore = ["E402", "E501"]
 
 
