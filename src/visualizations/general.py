@@ -2,13 +2,16 @@ import logging
 import textwrap
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import plotly.express as px
 import polars as pl
 from dash import Input, Output, callback
 from plotly import graph_objects as go
 from requests import get as r_get
+
+if TYPE_CHECKING:  # https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING
+    from config import Request
 
 from ..exceptions import ConfigError
 
@@ -26,7 +29,7 @@ _all__ = [
 ]
 
 
-def make_map(plot_config, requests):
+def make_map(plot_config: dict[str, Any], requests: dict[str, Request]):
     return Map(
         source_name=plot_config["source"],
         name=plot_config["name"],
@@ -40,7 +43,17 @@ def make_map(plot_config, requests):
     ).create()
 
 
-def make_plot_with_callback(plot_config, requests, comp_id, graph_id, func_name):
+def make_plot_with_callback(
+    plot_config: dict[str, Any],
+    requests: dict[str, Request],
+    comp_id: str,
+    graph_id: str,
+    func_name: str,
+):
+    """
+    Makes a plot with a callback to update the plot on input change.
+    See https://dash.plotly.com/basic-callbacks
+    """
     return Plot(
         source_name=plot_config["source"],
         name=plot_config["name"],
@@ -51,7 +64,7 @@ def make_plot_with_callback(plot_config, requests, comp_id, graph_id, func_name)
     ).add_callback(comp_id, graph_id, func_name)
 
 
-def make_plot(plot_config, requests):
+def make_plot(plot_config: dict[str, Any], requests: dict[str, Request]):
     return Plot(
         source_name=plot_config["source"],
         name=plot_config["name"],
@@ -61,7 +74,7 @@ def make_plot(plot_config, requests):
     ).create()
 
 
-def make_table(df) -> go.Figure:
+def make_table(df: pl.DataFrame) -> go.Figure:
     fig = go.Figure(
         data=[
             go.Table(
@@ -71,7 +84,7 @@ def make_table(df) -> go.Figure:
                     align="center",
                 ),
                 cells=dict(
-                    values=[df[col] for col in df.columns],
+                    values=[df.select(pl.col(col)) for col in df.columns],
                     align="center",
                     height=30,
                 ),
@@ -107,10 +120,6 @@ class Visualization(ABC):
     ) -> pl.Series:
         try:
             if bar_chart:
-                # filtered_df = self.df[self.df[filter_by] == filter]
-                # grouped_df = filtered_df.groupby("dateObserved").agg({path: "first"})
-                # sorted_df = grouped_df.sort_values("dateObserved")
-                # result = sorted_df[[path]]
                 result = (
                     self.df.filter(pl.col(filter_by) == filter)
                     .group_by("dateObserved")
@@ -119,8 +128,6 @@ class Visualization(ABC):
                     .select(pl.col(path))
                 )
             else:
-                # filtered_df = self.df[self.df[filter_by] == filter]
-                # result = filtered_df[[path]]
                 result = self.df.filter(pl.col(filter_by) == filter).select(
                     pl.col(path)
                 )
@@ -153,7 +160,7 @@ class Map(Visualization):
         if self.area in self.center_cache:
             return self.center_cache[self.area]
 
-        result: list[dict[str, dict]] = r_get(
+        result: list[dict[str, int]] = r_get(
             "https://nominatim.openstreetmap.org/search",
             params={"city": self.area, "format": "json", "limit": 1},
         ).json()
@@ -162,7 +169,7 @@ class Map(Visualization):
             raise ValueError(f"Could not find location for {self.area}")
 
         location = {"lat": float(result[0]["lat"]), "lon": float(result[0]["lon"])}
-        self.center_cache[self.area] = location
+        self.center_cache[self.area] = location  # type: ignore (area is always a string because of the create())
         return location
 
         # WARNING: google api deprecated
@@ -235,21 +242,23 @@ class Map(Visualization):
 
 @dataclass
 class Plot(Visualization):
-    traces: list[dict[str, str]]
+    traces: list[Any]  # list[dict[str, str]] | list[str]
     filter: str = field(default_factory=str)
     graph_id: str = field(init=False)
 
-    def create(self, filter_by: str = None) -> go.Figure:
+    def create(self, filter_by: str | None = None) -> go.Figure:
+        # TODO: this needs to be refactored (probably with a factory)
         fig = go.Figure()
+
         if self.type == "LineChart":
             for trace in self.traces:
                 fig.add_scatter(
                     x=self.get_data(trace["x"])
                     if not self.filter
-                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),
+                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),  # type: ignore
                     y=self.get_data(trace["y"])
                     if not self.filter
-                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),
+                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),  # type: ignore
                     mode="lines+markers",
                     name=trace["y"],
                 )
@@ -259,28 +268,30 @@ class Plot(Visualization):
                 fig.add_scatter(
                     x=self.get_data(trace["x"])
                     if not self.filter
-                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),
+                    else self.get_data_with_filter(trace["x"], self.filter, filter_by),  # type: ignore
                     y=self.get_data(trace["y"])
                     if not self.filter
-                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),
+                    else self.get_data_with_filter(trace["y"], self.filter, filter_by),  # type: ignore
                     mode="markers",
                     name=trace["y"],
                 )
+
         elif self.type == "BarChart":
             for trace in self.traces:
                 fig.add_bar(
                     x=self.get_data("dateObserved").sort()
                     if not self.filter
                     else self.get_data_with_filter(
-                        "dateObserved", self.filter, filter_by
+                        "dateObserved", self.filter, filter_by  # type: ignore
                     ).sort(),
                     y=self.get_data(trace)
                     if not self.filter
                     else self.get_data_with_filter(
-                        trace, self.filter, filter_by, bar_chart=True
+                        trace, self.filter, filter_by, bar_chart=True  # type: ignore
                     ),
                     name=trace,
                 )
+
         elif self.type == "PieChart":
             values = []
             labels = self.traces
@@ -288,7 +299,7 @@ class Plot(Visualization):
                 values.append(
                     self.get_data(trace).sum()
                     if not self.filter
-                    else self.get_data_with_filter(trace, self.filter, filter_by).sum()
+                    else self.get_data_with_filter(trace, self.filter, filter_by).sum()  # type: ignore
                 )
             fig.add_pie(values=values, labels=labels, hole=0.3)
 
