@@ -19,9 +19,13 @@
                     "type": "PointOfInterest",
                     "select": [
                         "name",
-                        "location"
+                        "location",
+                        "address",
+                        "description"
+
                     ]
-                }
+                },
+                "table": true
             }
         }
     },
@@ -40,20 +44,9 @@
                 "source": "Measurements",
                 "data": [
                     "location",
-                    "name"
-                ],
-                "extra": {
-                    "area": "Barcelona"
-                }
-
-            },
-            "Air Quality Visualization2": {
-                "name": "Points of Interest1",
-                "type": "Map",
-                "source": "Measurements",
-                "data": [
-                    "location",
-                    "name"
+                    "name",
+                    "address",
+                    "description"
                 ],
                 "extra": {
                     "area": "Barcelona"
