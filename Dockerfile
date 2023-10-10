@@ -1,14 +1,8 @@
 FROM python:3.11.3-slim as base
 
-ARG geocode_key
-ARG secret
-
-
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONHASHSEED=random \
     PYTHONUNBUFFERED=1 \
-    GEOCODING_KEY=$geocode_key \
-    SECRET_KEY=$secret
 
 WORKDIR /app
 

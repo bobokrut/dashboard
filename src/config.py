@@ -8,12 +8,14 @@ from urllib.parse import urljoin
 
 import orjson
 import polars as pl
+from azure.storage.fileshare import ShareFileClient
 from dash import dcc, html
 from dash.dash_table import DataTable
 from requests import get as r_get
 
 from src.visualizations.general import make_table
 
+from . import env
 from . import ssdl_types as t
 from .exceptions import ConfigError
 from .parser import parse
@@ -86,9 +88,15 @@ class App:
         logger.info("Initializing app...")
 
         if app_config is None:
-            with open("config.json") as f:
-                content = f.read()
-            app_config: dict[str, Any] = orjson.loads(content)
+            app_config: dict[str, Any] = orjson.loads(
+                ShareFileClient.from_connection_string(
+                    conn_str=env.AZURE_STORAGE_CONNECTION_STRING,
+                    share_name=env.AZURE_STORAGE_CONTAINER,
+                    file_path=env.AZURE_FILE_SHARE,
+                )
+                .download_file()
+                .readall()
+            )
 
         service = self._create_service(app_config)
 
