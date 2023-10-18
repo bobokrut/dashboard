@@ -88,15 +88,11 @@ class App:
         logger.info("Initializing app...")
 
         if app_config is None:
-            app_config: dict[str, Any] = orjson.loads(
-                ShareFileClient.from_connection_string(
-                    conn_str=env.AZURE_STORAGE_CONNECTION_STRING,
-                    share_name=env.AZURE_STORAGE_CONTAINER,
-                    file_path=env.AZURE_FILE_SHARE,
-                )
-                .download_file()
-                .readall()
-            )
+            if env.FILE_PAHT.startswith("https://"):
+                app_config: dict[str, Any] = requests.get(env.FILE_PAHT).json()
+            else:
+                with open(env.FILE_PAHT, "r") as f:
+                    app_config = orjson.loads(f.read())
 
         service = self._create_service(app_config)
 
