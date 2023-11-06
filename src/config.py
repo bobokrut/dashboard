@@ -8,7 +8,6 @@ from urllib.parse import urljoin
 
 import orjson
 import polars as pl
-from azure.storage.fileshare import ShareFileClient
 from dash import dcc, html
 from dash.dash_table import DataTable
 from requests import get as r_get
@@ -87,7 +86,8 @@ class GridItem(NamedTuple):
 
 class App:
     def __init__(
-        self, app_config: dict[str, Any] | None = None  # pyright: ignore
+        self,
+        app_config: dict[str, Any] | None = None,  # pyright: ignore
     ) -> None:
         requests = {}
 
